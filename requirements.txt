@@ -1,0 +1,9 @@
+torch
+torchvision
+numpy
+diffusers
+xformers
+transformers
+accelerate
+pytz
+matplotlib

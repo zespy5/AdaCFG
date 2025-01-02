@@ -55,7 +55,7 @@ if __name__ == "__main__":
     
     pnp = PNP(config)
     
-    save_root = Path('alpha_rev_scheduler_generate_results')
+    save_root = Path('alpha_rev_scheduler_Nonecov_generate_results')
     save_root.mkdir(exist_ok=True)
     
     day_dir = [*Path('images_upright/day/milestone').glob('*')][:50]
@@ -118,7 +118,7 @@ if __name__ == "__main__":
                 
                 config['prompt'] = edited_prompt
 
-                for g in [30.0, 50.0, 100.0]:
+                for g in [30.0, 50.0, 70.0, 100.0]:
                     config['guidance_scale']=g
                     pnp.reset_config(config)
                     gen_img = pnp.run()

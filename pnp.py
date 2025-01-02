@@ -104,7 +104,7 @@ class PNP(nn.Module):
         image = T.ToTensor()(image).to(self.device)
         # get noise
         latents_path = os.path.join(self.config["latents_path"],  f'noisy_latents_{self.scheduler.timesteps[0]}.pt')
-        noisy_latent = torch.load(latents_path).to(self.device)
+        noisy_latent = torch.load(latents_path, weights_only=False).to(self.device)
         return image, noisy_latent
 
     @torch.no_grad()
@@ -138,7 +138,7 @@ class PNP(nn.Module):
             self.qk_injection_timesteps = self.scheduler.timesteps[:qk_injection_t] if qk_injection_t >= 0 else []
             self.conv_injection_timesteps = self.scheduler.timesteps[:conv_injection_t] if conv_injection_t >= 0 else []
             register_attention_control_efficient(self, self.qk_injection_timesteps)
-            register_conv_control_efficient(self, self.conv_injection_timesteps)
+            #register_conv_control_efficient(self, self.conv_injection_timesteps)
 
     def run(self):
         pnp_f_t = int(self.config["n_timesteps"] * self.config["pnp_f_t"])
