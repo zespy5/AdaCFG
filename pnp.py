@@ -15,18 +15,6 @@ from pnp_utils import *
 # suppress partial model loading warning
 logging.set_verbosity_error()
 
-def rescale_noise_cfg(noise_cfg, noise_pred_text, guidance_rescale=0.0):
-    """
-    Rescale `noise_cfg` according to `guidance_rescale`. Based on findings of [Common Diffusion Noise Schedules and
-    Sample Steps are Flawed](https://arxiv.org/pdf/2305.08891.pdf). See Section 3.4
-    """
-    std_text = noise_pred_text.std(dim=list(range(1, noise_pred_text.ndim)), keepdim=True)
-    std_cfg = noise_cfg.std(dim=list(range(1, noise_cfg.ndim)), keepdim=True)
-    # rescale the results from guidance (fixes overexposure)
-    noise_pred_rescaled = noise_cfg * (std_text / std_cfg)
-    # mix with the original results from guidance by factor guidance_rescale to avoid "plain looking" images
-    noise_cfg = guidance_rescale * noise_pred_rescaled + (1 - guidance_rescale) * noise_cfg
-    return noise_cfg
 
 class PNP(nn.Module):
     def __init__(self, config):
@@ -58,6 +46,7 @@ class PNP(nn.Module):
         self.scheduler = DDIMScheduler.from_pretrained(model_key, subfolder="scheduler")
         self.scheduler.set_timesteps(config["n_timesteps"], device=self.device)
         print('SD model loaded')
+        
 
 
     def reset_config(self, config):
@@ -69,6 +58,20 @@ class PNP(nn.Module):
         self.text_embeds = self.get_text_embeds(config["prompt"], config["negative_prompt"])
         self.pnp_guidance_embeds = self.get_text_embeds("", "").chunk(2)[0]
         
+        self.noise_scale = []
+        self.noise_mean = []
+        self.noise_std = []
+        
+        
+    def save_tensor(self, save_dir):
+        g = self.config["guidance_scale"]
+        scales_save = save_dir/f'{int(g)}-scale-mean-std.pt'
+
+        noise_scale = torch.tensor(self.noise_scale).unsqueeze(0)
+        noise_mean = torch.tensor(self.noise_mean).unsqueeze(0)
+        noise_std = torch.tensor(self.noise_std).unsqueeze(0)
+        noise_info = torch.cat([noise_scale, noise_mean, noise_std])
+        torch.save(noise_info, scales_save)
 
 
     @torch.no_grad()
@@ -125,20 +128,36 @@ class PNP(nn.Module):
         alpha = self.scheduler.alphas_cumprod[total_t-t]
         guide = self.config["guidance_scale"]*alpha
 
-        guide = guide if guide >= 1 else 1
+        guide = guide.item() if guide >= 1 else 1
         # perform guidance
         _, noise_pred_uncond, noise_pred_cond = noise_pred.chunk(3)
         noise_pred = noise_pred_uncond + guide * (noise_pred_cond - noise_pred_uncond)
-        #noise_pred = rescale_noise_cfg(noise_pred, noise_pred_cond, 0.5)
+        
+        noise_pred = self.rescale_noise_cfg(noise_pred)
+        self.noise_scale.append(torch.mean(noise_pred**2).sqrt().item())
+        self.noise_mean.append(torch.mean(noise_pred).item())
+        self.noise_std.append(torch.std(noise_pred).item())
+        
         # compute the denoising step with the reference model
         denoised_latent = self.scheduler.step(noise_pred, t, x)['prev_sample']
         return denoised_latent
+    
+    def rescale_noise_cfg(self, noise_pred):
+        std_pred = noise_pred.std(dim=list(range(1, noise_pred.ndim)), keepdim=True)
+        if len(self.noise_std)==0 or std_pred <= self.noise_std[-1]:
+            return noise_pred
+        
+        mean_pred = noise_pred.mean(dim=list(range(1, noise_pred.ndim)), keepdim=True)
+        # rescale the results from guidance
+        noise_pred_rescaled = (noise_pred - mean_pred)* (self.noise_std[-1] / std_pred) + mean_pred
 
+        return noise_pred_rescaled
+    
     def init_pnp(self, conv_injection_t, qk_injection_t):
-            self.qk_injection_timesteps = self.scheduler.timesteps[:qk_injection_t] if qk_injection_t >= 0 else []
-            self.conv_injection_timesteps = self.scheduler.timesteps[:conv_injection_t] if conv_injection_t >= 0 else []
-            register_attention_control_efficient(self, self.qk_injection_timesteps)
-            #register_conv_control_efficient(self, self.conv_injection_timesteps)
+        self.qk_injection_timesteps = self.scheduler.timesteps[:qk_injection_t] if qk_injection_t >= 0 else []
+        self.conv_injection_timesteps = self.scheduler.timesteps[:conv_injection_t] if conv_injection_t >= 0 else []
+        register_attention_control_efficient(self, self.qk_injection_timesteps)
+        register_conv_control_efficient(self, self.conv_injection_timesteps)
 
     def run(self):
         pnp_f_t = int(self.config["n_timesteps"] * self.config["pnp_f_t"])
@@ -146,7 +165,7 @@ class PNP(nn.Module):
         self.init_pnp(conv_injection_t=pnp_f_t, qk_injection_t=pnp_attn_t)
         decoded_latent = self.sample_loop(self.eps)
         edited_img = T.ToPILImage()(decoded_latent[0])
-
+        
         return edited_img
         
     def sample_loop(self, x):
@@ -155,7 +174,6 @@ class PNP(nn.Module):
                 x = self.denoise_step(x, t)
 
             decoded_latent = self.decode_latent(x)
-            #T.ToPILImage()(decoded_latent[0]).resize((512,512)).save(f'{self.config["output_path"]}')
                 
         return decoded_latent
 

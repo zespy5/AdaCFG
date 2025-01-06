@@ -14,15 +14,14 @@ model = BlipForConditionalGeneration.from_pretrained("Salesforce/blip-image-capt
         
 def generate_prompt(images):
   
-  text = "a photography of"
-  inputs = processor(images, text, return_tensors="pt").to("cuda", torch.float16)
+    text = "a photography of"
+    inputs = processor(images, text, return_tensors="pt").to("cuda", torch.float16)
 
-  out = model.generate(**inputs)
-  caption = processor.decode(out[0], skip_special_tokens=True)
-  if 'at night' in caption:
-      caption = caption.split('at night')[0]
+    out = model.generate(**inputs)
+    caption = processor.decode(out[0], skip_special_tokens=True)
+    caption = caption.replace(' at night','')
 
-  return caption
+    return caption
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -55,7 +54,7 @@ if __name__ == "__main__":
     
     pnp = PNP(config)
     
-    save_root = Path('alpha_rev_scheduler_Nonecov_generate_results')
+    save_root = Path('scheduler_none_rescale_generate_results')
     save_root.mkdir(exist_ok=True)
     
     day_dir = [*Path('images_upright/day/milestone').glob('*')][:50]
@@ -84,7 +83,7 @@ if __name__ == "__main__":
                  ' at sunset',
                  ' at daytime']
     
-    for dn in ['day', 'night']:
+    for dn in [ 'night', 'day',]:
         conditions = day_coditions if dn=='day' else night_coditions
         image_p= day_dir if dn=='day' else night_dir
         save_time_dir = save_root/dn
@@ -124,6 +123,9 @@ if __name__ == "__main__":
                     gen_img = pnp.run()
                     gen_file_name = save_gen_img_dir/f'guid{int(g)}.png'
                     gen_img.resize((512,512)).save(gen_file_name)
+                    
+                    print(gen_file_name)
+                    pnp.save_tensor(save_dir=save_gen_img_dir)
 
                 
  
