@@ -7,7 +7,7 @@ def sort_keya(ele1):
     string1 = ele1.stem.split('-')[0]
     return int(string1)
 
-root = Path('scheduler_none_rescale_generate_results')
+root = Path('scheduler_rescale_generate_results')
 datas = [*root.glob('*/*/*')]
 for imgs in tqdm(datas):
     gs = sorted([*imgs.glob('*.pt')], key=sort_keya)
