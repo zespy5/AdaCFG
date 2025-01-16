@@ -2,12 +2,11 @@ from pnp import PnPPipeline
 from PIL import Image
 import matplotlib.pyplot as plt
 from pathlib import Path
-from pnp_utils import *
+from utils.guidance_scheduler import GuidanceScheduler
+import torch
 
 
-
-
-if __name__ == "__main__":    
+def main():    
     conditions = [' on a summer day',
                  ' on a spring day',
                  ' on a winter day',
@@ -22,15 +21,20 @@ if __name__ == "__main__":
                  ' at daytime']
     
     pipe = PnPPipeline()
+    guidance_scheduler = GuidanceScheduler(batch_size=2)
     
-    save_root = Path('check_generate_results')
+    save_root = Path('debug_results')
     save_root.mkdir(exist_ok=True)
     
-    dirs = [*Path('images_upright/day/milestone').glob('*')]
+    dirs = [*Path('image_data').glob('*')]
+    
+    tensor = torch.tensor([[50,0.00085,0.015],
+                       [70,0.00085,0.012]])
 
+    guidance_schedulers = guidance_scheduler.get_guidance_scales(tensor)
     results = pipe(image_dirs=dirs[:2],
                    conditions=conditions,
-                   latents_save_root='latents_forward2',
+                   #guidance_scales=guidance_schedulers,
                    negative_prompt='ugly, blurry, low res, unrealistic, paint')
     images = results.images
     prompts = results.prompts
@@ -39,6 +43,9 @@ if __name__ == "__main__":
         images[i].resize((512,512)).save(gen_file_name)
 
 
+
+if __name__ == "__main__": 
+    main()
                 
  
                 

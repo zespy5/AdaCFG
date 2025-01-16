@@ -10,7 +10,7 @@ from tqdm import tqdm
 from transformers import logging, BlipProcessor, BlipForConditionalGeneration
 from diffusers import DDIMScheduler, StableDiffusionPipeline
 from diffusers.utils import BaseOutput
-from pnp_utils import *
+from utils.pnp_utils import *
 
 # suppress partial model loading warning
 logging.set_verbosity_error()
@@ -125,7 +125,8 @@ class PnPPipeline(nn.Module):
 
 
     @torch.no_grad()
-    def denoise_step(self, x, t):
+    def denoise_step(self, x, t, i):
+        batch_size = x.shape[0]
         # register the time step and features in pnp injection modules
         source_latents = [self.load_source_latents_t(t,latent) for latent in self.source_latents_save_dirs]
         source_latents = torch.cat(source_latents).to(self.device)
@@ -139,7 +140,7 @@ class PnPPipeline(nn.Module):
         # apply the denoising network
         noise_pred = self.unet(latent_model_input, t, encoder_hidden_states=text_embed_input)['sample']
 
-        guide = self.guidance_scales[self.latents_steps-1-t]
+        guide = self.guidance_scales[:,i].view(batch_size,1,1,1)
         # perform guidance
         _, noise_pred_uncond, noise_pred_cond = noise_pred.chunk(3)
 
@@ -159,7 +160,7 @@ class PnPPipeline(nn.Module):
     def sample_loop(self, x):
         with torch.autocast(device_type='cuda', dtype=torch.float32):
             for i, t in enumerate(tqdm(self.scheduler.timesteps, desc="Sampling")):
-                x = self.denoise_step(x, t)
+                x = self.denoise_step(x, t, i)
 
             decoded_latent = self.decode_latent(x)
     
@@ -197,13 +198,7 @@ class PnPPipeline(nn.Module):
         # make list variable
         image_dirs = [image_dirs] if not isinstance(image_dirs, list) else image_dirs
         
-        # define guidance scales
-        if guidance_scales is None:
-            alpha = self.scheduler.alphas_cumprod
-            _guidance = 50*alpha
-            self.guidance_scales = _guidance
-        else:
-            self.guidance_scales = guidance_scales
+        
         
         # make latent root
         latent_save_root_dir = Path(latents_save_root)
@@ -216,6 +211,15 @@ class PnPPipeline(nn.Module):
             batch_size = len(image_dirs)
         else:
             batch_size =1
+            
+        # define guidance scales
+        if guidance_scales is None:
+            alpha = self.scheduler.alphas_cumprod.to(self.device)
+            alpha = alpha[self.scheduler.timesteps]
+            _guidance = 50*alpha.unsqueeze(0).repeat(batch_size,1).flip(1)
+            self.guidance_scales= _guidance    
+        else:
+            self.guidance_scales = guidance_scales.to(self.device)
         
         #generate prompt
         if self.generate_condition_prompt:

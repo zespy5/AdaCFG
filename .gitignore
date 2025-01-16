@@ -4,3 +4,7 @@ images_upright
 __pycache__
 *origin.py
 legacy
+
+
+# image data
+image_data
