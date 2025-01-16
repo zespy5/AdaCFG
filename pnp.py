@@ -25,16 +25,19 @@ class PnPPipeline(nn.Module):
                  seed : int = 1,
                  latents_steps : int=1000,
                  device : str = 'cuda',
+                 generate_condition_prompt : bool = True,
                  
                  ):
         super().__init__()
 
         self.device = device
+        self.generate_condition_prompt = generate_condition_prompt
         self.latents_steps = latents_steps
         self.seed = seed
         self.n_timestep=n_timestep
         self.pnp_attn_t = int(n_timestep*pnp_attn_t)
         self.pnp_f_t = int(n_timestep*pnp_f_t)
+        
 
         if sd_version == '2.1':
             model_key = "stabilityai/stable-diffusion-2-1-base"
@@ -59,11 +62,14 @@ class PnPPipeline(nn.Module):
         self.inversion_timesteps = reversed(self.scheduler.timesteps)
         self.scheduler.set_timesteps(self.n_timestep, device=self.device)
         
+        self.image_processor = None
+        self.i2t_model = None
         
-        
-        self.image_processor = BlipProcessor.from_pretrained("Salesforce/blip-image-captioning-large")
-        self.i2t_model = BlipForConditionalGeneration.from_pretrained("Salesforce/blip-image-captioning-large", torch_dtype=torch.float16).to(self.device)
-        
+        if self.generate_condition_prompt:
+            self.image_processor = BlipProcessor.from_pretrained("Salesforce/blip-image-captioning-large") 
+            self.i2t_model = BlipForConditionalGeneration.from_pretrained("Salesforce/blip-image-captioning-large", 
+                                                                        torch_dtype=torch.float16).to(self.device)
+            
         self.init_pnp(self.pnp_f_t, self.pnp_attn_t)
         
         
@@ -182,10 +188,11 @@ class PnPPipeline(nn.Module):
     
     def __call__(self,
                  image_dirs : Union[Path, List[Path]] = None,
-                 conditions : Optional[Union[str, List[str]]] = None,
                  latents_save_root : Optional[str] = 'latents_forward',
                  guidance_scales : Optional[torch.Tensor] = None,
                  negative_prompt: Optional[str] = None,
+                 prompts : Optional[Union[str, List[str]]] = None,
+                 conditions : Optional[Union[str, List[str]]] = None,
                  ):
         # make list variable
         image_dirs = [image_dirs] if not isinstance(image_dirs, list) else image_dirs
@@ -209,16 +216,21 @@ class PnPPipeline(nn.Module):
             batch_size = len(image_dirs)
         else:
             batch_size =1
-            
-        #generate prompt
-        prompts = self.generate_prompt(image_dirs)
         
-        #combine with condition
-        if conditions is not None and isinstance(conditions, list):
-            num_conditions = len(conditions)
-            prompts = [prompts[i]+conditions[np.random.randint(0, num_conditions)] for i in range(batch_size)]
-        elif conditions is not None and isinstance(conditions, str):
-            prompts = [prompts[i]+conditions for i in range(batch_size)]
+        #generate prompt
+        if self.generate_condition_prompt:
+            prompts = self.generate_prompt(image_dirs)
+            
+            #combine with condition
+            if conditions is not None and isinstance(conditions, list):
+                num_conditions = len(conditions)
+                prompts = [prompts[i]+conditions[np.random.randint(0, num_conditions)] for i in range(batch_size)]
+            elif conditions is not None and isinstance(conditions, str):
+                prompts = [prompts[i]+conditions for i in range(batch_size)]
+        elif prompts is None:
+            prompts = ""
+            print(f"Warning : the prompt is Null text")
+            
             
         #negative prompt
         negative_prompt = "" if negative_prompt==None else negative_prompt
