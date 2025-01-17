@@ -2,7 +2,7 @@ from typing import Any, Callable, Dict, List, Optional, Union
 import torch
 import torch.nn as nn
 from PIL import Image
-from transformers import AutoImageProcessor, AutoModel, CLIPModel
+from transformers import AutoImageProcessor, AutoModel, CLIPModel, CLIPProcessor
 import torch.nn.functional as F
 from guidance_scheduler import GuidanceScheduler
 from ..pnp import PnPPipeline
@@ -25,11 +25,11 @@ class Loss(nn.Module):
         self.lambda_structure = lambda_structure
         self.lambda_reg = lambda_reg
         
-        self.pipeline = PnPPipeline()
+        self.pipeline = PnPPipeline(generate_condition_prompt=False)
         self.guidance_scheduler = GuidanceScheduler()
         
         self.clip_model = CLIPModel.from_pretrained("openai/clip-vit-large-patch14").to(self.device)
-        self.clip_processor = AutoImageProcessor.from_pretrained("openai/clip-vit-large-patch14")
+        self.clip_processor = CLIPProcessor.from_pretrained("openai/clip-vit-large-patch14")
         self.dino_model = AutoModel.from_pretrained('facebook/dinov2-large').to(self.device)
         self.dino_processor = AutoImageProcessor.from_pretrained('facebook/dinov2-large')
 
@@ -58,13 +58,13 @@ class Loss(nn.Module):
         
         return loss
     
-    def generate_edited_image(self, image_dirs, guidance_info):
+    def generate_edited_image(self, image_dirs, prompts, guidance_info):
         
         with torch.no_grad():
             scheduled_guidance = self.guidance_scheduler.get_guidance_scales(guidance_info)
         
             outputs = self.pipeline(image_dirs=image_dirs,
-                                    conditions=self.conditions,
+                                    prompts = prompts,
                                     guidance_scales=scheduled_guidance,
                                     negative_prompt=self.negative_prompt)
             gen_images = outputs.images
@@ -74,10 +74,13 @@ class Loss(nn.Module):
             
         
     
-    def forward(self, image_dirs, guidance_info:torch.Tensor):
-        real_images = [Image.open(d).convert('RGB') for d in image_dirs]
-        
-        gen_images, prompts = self.generate_edited_image(image_dirs, guidance_info)
+    def forward(self, 
+                image_dirs, 
+                real_images,
+                prompts,
+                guidance_info:torch.Tensor):
+
+        gen_images, _ = self.generate_edited_image(image_dirs, guidance_info)
         text_loss = self.clip_loss(gen_images, prompts)
         structure_loss = self.dino_loss(real_images, gen_images)
         

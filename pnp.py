@@ -63,6 +63,7 @@ class PnPPipeline(nn.Module):
         self.inversion_timesteps = reversed(self.scheduler.timesteps)
         self.scheduler.set_timesteps(self.n_timestep, device=self.device)
         
+        
         self.image_processor = None
         self.i2t_model = None
         
