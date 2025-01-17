@@ -27,13 +27,13 @@ class GuidanceScheduler(DDIMScheduler):
         
         batch_size, info_len = schedule_info.shape
         assert info_len==3, f"the schedule information length is 3, but this information length is {info_len}"
-        self.timesteps = self.timesteps.repeat(batch_size,1)
+        timesteps = self.timesteps.repeat(batch_size,1)
         schedule_infos = schedule_info.cpu().numpy()
         
         schedulers = [self.schedule(s[0], s[1], s[2]).unsqueeze(0) for s in schedule_infos]
         schedulers = torch.cat(schedulers)
 
-        selected_schedulers = torch.gather(schedulers,1, self.timesteps)
+        selected_schedulers = torch.gather(schedulers,1, timesteps)
         selected_schedulers = selected_schedulers.flip(1)
 
         return selected_schedulers

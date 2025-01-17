@@ -4,7 +4,8 @@ import numpy as np
 import torch
 from torch.utils.data import Dataset
 from PIL import Image
-from transformers import BlipProcessor, BlipForConditionalGeneration
+from transformers import BlipProcessor, BlipForConditionalGeneration, CLIPModel, CLIPProcessor
+from tqdm import tqdm
 
 class DomainChangeDataset(Dataset):
     def __init__(self,
@@ -29,22 +30,26 @@ class DomainChangeDataset(Dataset):
                                                                       torch_dtype=torch.float16).to(self.device)
 
         self.image_names = [*self.data_directory.glob('*')]
-        assert len(self.image_names)==0, "There is no image files"
+        assert len(self.image_names)!=0, "There is no image files"
+
+        self.real_image_set = [Image.open(img).convert('RGB') for img in tqdm(self.image_names)]
+        self.prompt_set = [self.generate_prompt(img) for img in tqdm(self.real_image_set)]
         
-        
+        self.condition_prompt_set = None
+        self.update_condition_set()
+
+    def update_condition_set(self):
+        self.condition_prompt_set = [self.prompt_set[i]+self.conditions[np.random.randint(0, self.num_conditions)]
+                                     for i in range(len(self.image_names))]
+    
+    
     def __len__(self):
         return len(self.image_names)
     
     def __getitem__(self, idx):
-        image_file_name = self.image_names[idx]
-        real_image = Image.open(image_file_name).convert('RGB')
-        
-        prompts = self.generate_prompt(real_image)
-        
-        random_condition = np.random.randint(0, self.num_conditions)
-        prompts += self.conditions[random_condition]
-        
-        return image_file_name, real_image, prompts
+        image_idx = torch.tensor(idx, dtype=torch.int16)
+
+        return image_idx
     
     def generate_prompt(self, images):
         
@@ -55,5 +60,5 @@ class DomainChangeDataset(Dataset):
 
         captions = self.image_processor.decode(outputs[0], skip_special_tokens=True)
         captions = captions.replace(' at night','').rstrip()
-
+        
         return captions

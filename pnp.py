@@ -161,7 +161,7 @@ class PnPPipeline(nn.Module):
         
     def sample_loop(self, x):
         with torch.autocast(device_type='cuda', dtype=torch.float32):
-            for i, t in enumerate(tqdm(self.scheduler.timesteps, desc="Sampling")):
+            for i, t in enumerate(self.scheduler.timesteps):
                 x = self.denoise_step(x, t, i)
 
             decoded_latent = self.decode_latent(x)
@@ -265,7 +265,8 @@ class PnPPipeline(nn.Module):
             
             source_latent_last_step_file = source_latent_save_dir/f'noisy_latents_{last_step}.pt'
             if source_latent_last_step_file.exists():
-                print(f'There exist {img_dir.stem} latent files')
+                #print(f'There exist {img_dir.stem} latent files')
+                pass
             else:
                 source_latent_save_dir.mkdir(exist_ok=True)
                 self.extract_latents(img_dir, source_latent_save_dir)
