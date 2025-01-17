@@ -21,7 +21,7 @@ def main():
                  ' at daytime']
     
     pipe = PnPPipeline()
-    guidance_scheduler = GuidanceScheduler(batch_size=2)
+    guidance_scheduler = GuidanceScheduler()
     
     save_root = Path('debug_results')
     save_root.mkdir(exist_ok=True)
@@ -34,7 +34,7 @@ def main():
     guidance_schedulers = guidance_scheduler.get_guidance_scales(tensor)
     results = pipe(image_dirs=dirs[:2],
                    conditions=conditions,
-                   #guidance_scales=guidance_schedulers,
+                   guidance_scales=guidance_schedulers,
                    negative_prompt='ugly, blurry, low res, unrealistic, paint')
     images = results.images
     prompts = results.prompts

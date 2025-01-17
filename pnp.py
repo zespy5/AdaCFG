@@ -26,12 +26,13 @@ class PnPPipeline(nn.Module):
                  latents_steps : int=1000,
                  device : str = 'cuda',
                  generate_condition_prompt : bool = True,
-                 
+                 init_text :str = "a photography of"
                  ):
         super().__init__()
 
         self.device = device
         self.generate_condition_prompt = generate_condition_prompt
+        self.init_text = init_text
         self.latents_steps = latents_steps
         self.seed = seed
         self.n_timestep=n_timestep
@@ -84,7 +85,7 @@ class PnPPipeline(nn.Module):
         
         images = [Image.open(img) for img in image_dirs]
         
-        text = ["a photography of"]*len(images)
+        text = [self.init_text]*len(images)
         inputs = self.image_processor(images, text, 
                                       return_tensors="pt").to(self.device, torch.float16)
 
@@ -189,11 +190,11 @@ class PnPPipeline(nn.Module):
     
     def __call__(self,
                  image_dirs : Union[Path, List[Path]] = None,
-                 latents_save_root : Optional[str] = 'latents_forward',
-                 guidance_scales : Optional[torch.Tensor] = None,
-                 negative_prompt: Optional[str] = None,
                  prompts : Optional[Union[str, List[str]]] = None,
                  conditions : Optional[Union[str, List[str]]] = None,
+                 guidance_scales : Optional[torch.Tensor] = None,
+                 negative_prompt: Optional[str] = None,
+                 latents_save_root : Optional[str] = 'latents_forward',
                  ):
         # make list variable
         image_dirs = [image_dirs] if not isinstance(image_dirs, list) else image_dirs
