@@ -100,6 +100,7 @@ class Loss(nn.Module):
         gen_images, _ = self.generate_edited_image(image_dirs=image_dirs, 
                                                    prompts=prompts,
                                                    guidance_info=guidance_info)
+
         text_loss = self.clip_loss(gen_images, prompts)
         structure_loss = self.dino_loss(real_images, gen_images)
         

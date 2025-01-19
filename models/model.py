@@ -1,4 +1,4 @@
-from typing import Literal, Optional
+from typing import Literal, Optional,List
 import torch
 import torch.nn as nn
 
@@ -6,7 +6,7 @@ import torch.nn as nn
 class GuidanceModel(nn.Module):
     def __init__(
         self,
-        init_g : float = 100.0,
+        init_g : List[float] = [100.0, 0.001, 0.1],
         num_guidance_info : int = 3,
         linear_in_size: Optional[int] = None,
         num_mlp_layers: int = 2,
@@ -24,8 +24,8 @@ class GuidanceModel(nn.Module):
         self.hidden_act = hidden_act
         self.num_mlp_layers = num_mlp_layers
         
-        self.init_G = torch.ones(num_guidance_info).to(device)
-        self.init_G[0]*=init_g
+        self.init_G = torch.tensor(init_g).to(device)
+
 
         self.MLP_modules = []
         self.activate = activates[hidden_act]

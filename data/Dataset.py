@@ -29,14 +29,14 @@ class DomainChangeDataset(Dataset):
         self.i2t_model = BlipForConditionalGeneration.from_pretrained("Salesforce/blip-image-captioning-large", 
                                                                       torch_dtype=torch.float16).to(self.device)
 
-        self.image_names = [*self.data_directory.glob('*')]
+        self.image_names = sorted([*self.data_directory.glob('*')])
         assert len(self.image_names)!=0, "There is no image files"
 
         self.real_image_set = [Image.open(img).convert('RGB') for img in tqdm(self.image_names)]
         self.prompt_set = [self.generate_prompt(img) for img in tqdm(self.real_image_set)]
         
-        self.condition_prompt_set = None
-        self.update_condition_set()
+        #self.condition_prompt_set = None
+        #self.update_condition_set()
 
     def update_condition_set(self):
         self.condition_prompt_set = [self.prompt_set[i]+self.conditions[np.random.randint(0, self.num_conditions)]
