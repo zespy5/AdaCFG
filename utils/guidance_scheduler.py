@@ -6,19 +6,21 @@ class GuidanceScheduler(DDIMScheduler):
     def __init__(self,
                  num_train_timesteps: int = 1000,
                  n_timestep: int = 50,
+                 device : str = 'cuda'
                  ):
         super().__init__(num_train_timesteps=num_train_timesteps)
         
         self.num_train_timesteps = num_train_timesteps
         self.set_timesteps(n_timestep)
+        self.device = device
         
 
         
     def schedule(self, init_num, beta_start, beta_end):
         
-        betas = torch.linspace(beta_start**0.5, beta_end**0.5, self.num_train_timesteps, dtype=torch.float32)
+        betas = torch.linspace(beta_start**0.5, beta_end**0.5, self.num_train_timesteps, dtype=torch.float32).to(self.device)
         alphas = 1.0 - betas
-        alphas_cumprod = torch.cumprod(alphas, dim=0)
+        alphas_cumprod = torch.cumprod(alphas, dim=0).to(self.device)
         
         return alphas_cumprod*init_num
         
@@ -27,13 +29,14 @@ class GuidanceScheduler(DDIMScheduler):
         
         batch_size, info_len = schedule_info.shape
         assert info_len==3, f"the schedule information length is 3, but this information length is {info_len}"
-        timesteps = self.timesteps.repeat(batch_size,1)
-        schedule_infos = schedule_info.cpu().numpy()
+        timesteps = self.timesteps.repeat(batch_size,1).to(self.device)
+        schedule_infos = schedule_info.to(self.device)
         
         schedulers = [self.schedule(s[0], s[1], s[2]).unsqueeze(0) for s in schedule_infos]
-        schedulers = torch.cat(schedulers)
+        schedulers = torch.cat(schedulers).to(self.device)
+        
 
-        selected_schedulers = torch.gather(schedulers,1, timesteps)
+        selected_schedulers = torch.gather(schedulers,1, timesteps).to(self.device)
         selected_schedulers = selected_schedulers.flip(1)
 
         return selected_schedulers

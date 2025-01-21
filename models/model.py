@@ -6,7 +6,7 @@ import torch.nn as nn
 class GuidanceModel(nn.Module):
     def __init__(
         self,
-        init_g : List[float] = [100.0, 0.001, 0.1],
+        init_g : Optional[torch.Tensor] = None,
         num_guidance_info : int = 3,
         linear_in_size: Optional[int] = None,
         num_mlp_layers: int = 2,
@@ -24,11 +24,14 @@ class GuidanceModel(nn.Module):
         self.hidden_act = hidden_act
         self.num_mlp_layers = num_mlp_layers
         
-        self.init_G = torch.tensor(init_g).to(device)
+        self.init_G = init_g
+        self.init_G.requires_grad=False
 
 
         self.MLP_modules = []
         self.activate = activates[hidden_act]
+        for _ in range(self.num_mlp_layers):
+            self.MLP_modules.append(nn.Linear(self.in_size, self.in_size))
 
         for _ in range(self.num_mlp_layers):
             self.MLP_modules.append(nn.Linear(self.in_size, self.in_size // 2))
@@ -43,6 +46,6 @@ class GuidanceModel(nn.Module):
 
         out = self.MLP(x)
         out = self.out(out)
-        out = torch.sigmoid(out)
+        out = torch.exp(out)
 
         return out*self.init_G

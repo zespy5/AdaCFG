@@ -35,6 +35,7 @@ class DomainChangeDataset(Dataset):
         self.real_image_set = [Image.open(img).convert('RGB') for img in tqdm(self.image_names)]
         self.prompt_set = [self.generate_prompt(img) for img in tqdm(self.real_image_set)]
         
+
         #self.condition_prompt_set = None
         #self.update_condition_set()
 
@@ -51,6 +52,7 @@ class DomainChangeDataset(Dataset):
 
         return image_idx
     
+    @torch.no_grad()
     def generate_prompt(self, images):
         
         inputs = self.image_processor(images, self.init_text, 

@@ -26,7 +26,8 @@ class PnPPipeline(nn.Module):
                  latents_steps : int=1000,
                  device : str = 'cuda',
                  generate_condition_prompt : bool = True,
-                 init_text :str = "a photography of"
+                 init_text :str = "a photography of",
+                 tensor_out : bool = False
                  ):
         super().__init__()
 
@@ -38,6 +39,7 @@ class PnPPipeline(nn.Module):
         self.n_timestep=n_timestep
         self.pnp_attn_t = int(n_timestep*pnp_attn_t)
         self.pnp_f_t = int(n_timestep*pnp_f_t)
+        self.tensor_out = tensor_out
         
 
         if sd_version == '2.1':
@@ -74,6 +76,16 @@ class PnPPipeline(nn.Module):
             
         self.init_pnp(self.pnp_f_t, self.pnp_attn_t)
         
+        for p in self.vae.parameters():
+            p.requires_grad=False
+            
+        for p in self.text_encoder.parameters():
+            p.requires_grad=False
+            
+        for p in self.unet.parameters():
+            p.requires_grad=False
+            
+        
         
     def init_pnp(self, conv_injection_t, qk_injection_t):
         self.qk_injection_timesteps = self.scheduler.timesteps[:qk_injection_t] if qk_injection_t >= 0 else []
@@ -81,7 +93,7 @@ class PnPPipeline(nn.Module):
         register_attention_control_efficient(self, self.qk_injection_timesteps)
         register_conv_control_efficient(self, self.conv_injection_timesteps)
         
-        
+    @torch.no_grad()
     def generate_prompt(self, image_dirs):
         
         images = [Image.open(img) for img in image_dirs]
@@ -116,7 +128,7 @@ class PnPPipeline(nn.Module):
         
         return text_embeddings
 
-    @torch.no_grad()
+    #@torch.no_grad()
     def decode_latent(self, latent):
         with torch.autocast(device_type=self.device, dtype=torch.float32):
             latent = 1 / 0.18215 * latent
@@ -126,7 +138,7 @@ class PnPPipeline(nn.Module):
 
 
 
-    @torch.no_grad()
+    #@torch.no_grad()
     def denoise_step(self, x, t, i):
         batch_size = x.shape[0]
         # register the time step and features in pnp injection modules
@@ -138,9 +150,9 @@ class PnPPipeline(nn.Module):
 
         # compute text embeddings
         text_embed_input = torch.cat([self.pnp_guidance_embeds, self.negative_text_embeds, self.text_embeds], dim=0)
-
-        # apply the denoising network
-        noise_pred = self.unet(latent_model_input, t, encoder_hidden_states=text_embed_input)['sample']
+        with torch.no_grad():
+            # apply the denoising network
+            noise_pred = self.unet(latent_model_input, t, encoder_hidden_states=text_embed_input)['sample']
 
         guide = self.guidance_scales[:,i].view(batch_size,1,1,1)
         # perform guidance
@@ -276,6 +288,10 @@ class PnPPipeline(nn.Module):
         
         # denoising
         decoded_latent = self.sample_loop(zT)
+
+        if self.tensor_out:
+            return PnPPipelineOutput(images=decoded_latent, prompts=prompts)
+        
         edited_imgs = [T.ToPILImage()(latent) for latent in decoded_latent]
         
         return PnPPipelineOutput(images=edited_imgs, prompts=prompts)
@@ -341,5 +357,5 @@ class PnPPipelineOutput(BaseOutput):
         prompts (`List[str]`)
     """
 
-    images: Optional[List[Image.Image]]
+    images: Optional[Union[List[Image.Image], torch.Tensor]]
     prompts: Optional[List[str]]
