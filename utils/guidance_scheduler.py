@@ -15,36 +15,28 @@ class GuidanceScheduler(DDIMScheduler):
         self.device = device
         
 
+    @torch.no_grad()
+    def schedule(self, beta_start:float = 0.00085, beta_end:float = 0.012):
         
-    def schedule(self, init_num, beta_start, beta_end):
-        
-        betas = torch.linspace(beta_start**0.5, beta_end**0.5, self.num_train_timesteps, dtype=torch.float32).to(self.device)
+        betas = torch.linspace(beta_start**0.5, beta_end**0.5, self.num_train_timesteps, dtype=torch.float32)**2
         alphas = 1.0 - betas
-        alphas_cumprod = torch.cumprod(alphas, dim=0).to(self.device)
+        alphas_cumprod = torch.cumprod(alphas, dim=0)
         
-        return alphas_cumprod*init_num
+        return alphas_cumprod
         
         
     def get_guidance_scales(self, schedule_info : torch.Tensor)->torch.Tensor:
         
-        batch_size, info_len = schedule_info.shape
-        assert info_len==3, f"the schedule information length is 3, but this information length is {info_len}"
-        timesteps = self.timesteps.repeat(batch_size,1).to(self.device)
-        schedule_infos = schedule_info.to(self.device)
+        batch_size, _ = schedule_info.shape
+
+        timesteps = self.timesteps.repeat(batch_size,1)
         
-        schedulers = [self.schedule(s[0], s[1], s[2]).unsqueeze(0) for s in schedule_infos]
-        schedulers = torch.cat(schedulers).to(self.device)
+        scheduler = self.schedule().unsqueeze(0).repeat(batch_size,1)
+
+        selected_schedulers = torch.gather(scheduler,1, timesteps)
+        selected_schedulers = selected_schedulers.flip(1).to(self.device)
         
+        schedulers = schedule_info*selected_schedulers
+        schedulers = torch.where(schedulers<1, 1.0, schedulers)
 
-        selected_schedulers = torch.gather(schedulers,1, timesteps).to(self.device)
-        selected_schedulers = selected_schedulers.flip(1)
-
-        return selected_schedulers
-    
-if __name__=="__main__":
-    
-    tensor = torch.tensor([[50,0.0001,0.012],
-                       [50,0.0001,0.013]])
-    scheduler = GuidanceScheduler(batch_size=2)
-
-    scheduler.get_guidance_scales(tensor)
+        return schedulers

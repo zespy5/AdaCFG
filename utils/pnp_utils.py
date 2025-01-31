@@ -9,21 +9,28 @@ def seed_everything(seed):
     random.seed(seed)
     np.random.seed(seed)
 
-def register_time(model, t):
+def register_time(model, t, num_conditions: int=1):
+    #add condition num +2 (origin "" & negative prompt)
+    num_conditions+=2
+    
     conv_module = model.unet.up_blocks[1].resnets[1]
     setattr(conv_module, 't', t)
+    setattr(conv_module, 'num_conditions', num_conditions)
     down_res_dict = {0: [0, 1], 1: [0, 1], 2: [0, 1]}
     up_res_dict = {1: [0, 1, 2], 2: [0, 1, 2], 3: [0, 1, 2]}
     for res in up_res_dict:
         for block in up_res_dict[res]:
             module = model.unet.up_blocks[res].attentions[block].transformer_blocks[0].attn1
             setattr(module, 't', t)
+            setattr(module, 'num_conditions', num_conditions)
     for res in down_res_dict:
         for block in down_res_dict[res]:
             module = model.unet.down_blocks[res].attentions[block].transformer_blocks[0].attn1
             setattr(module, 't', t)
+            setattr(module, 'num_conditions', num_conditions)
     module = model.unet.mid_block.attentions[0].transformer_blocks[0].attn1
     setattr(module, 't', t)
+    setattr(module, 'num_conditions', num_conditions)
 
 
 def load_source_latents_t(t, latents_path):
@@ -48,16 +55,25 @@ def register_attention_control_efficient(model, injection_schedule):
             encoder_hidden_states = encoder_hidden_states if is_cross else x
             if not is_cross and self.injection_schedule is not None and (
                     self.t in self.injection_schedule or self.t == 1000):
+                
+                assert (batch_size%self.num_conditions)==0 , 'The number of conditions is not matching batch size.'
+                
+                x = x.chunk(self.num_conditions)[0]
+                _encoder_hidden_states = x
+                
                 q = self.to_q(x)
-                k = self.to_k(encoder_hidden_states)
+                k = self.to_k(_encoder_hidden_states)
+                
+                q = q.repeat(self.num_conditions,1,1)
+                k = k.repeat(self.num_conditions,1,1)
 
-                source_batch_size = int(q.shape[0] // 3)
+                '''source_batch_size = int(q.shape[0] // 3)
                 # inject unconditional
                 q[source_batch_size:2 * source_batch_size] = q[:source_batch_size]
                 k[source_batch_size:2 * source_batch_size] = k[:source_batch_size]
                 # inject conditional
                 q[2 * source_batch_size:] = q[:source_batch_size]
-                k[2 * source_batch_size:] = k[:source_batch_size]
+                k[2 * source_batch_size:] = k[:source_batch_size]'''
 
                 q = self.head_to_batch_dim(q)
                 k = self.head_to_batch_dim(k)
@@ -80,6 +96,7 @@ def register_attention_control_efficient(model, injection_schedule):
 
             # attention, what we cannot get enough of
             attn = sim.softmax(dim=-1)
+
             out = torch.einsum("b i j, b j d -> b i d", attn, v)
             out = self.batch_to_head_dim(out)
 
@@ -133,11 +150,15 @@ def register_conv_control_efficient(model, injection_schedule):
             hidden_states = self.dropout(hidden_states)
             hidden_states = self.conv2(hidden_states)
             if self.injection_schedule is not None and (self.t in self.injection_schedule or self.t == 1000):
-                source_batch_size = int(hidden_states.shape[0] // 3)
+                
+                hidden_states = hidden_states.chunk(self.num_conditions)[0]
+                hidden_states = hidden_states.repeat(self.num_conditions,1,1,1)
+                
+                '''source_batch_size = int(hidden_states.shape[0] // 3)
                 # inject unconditional
                 hidden_states[source_batch_size:2 * source_batch_size] = hidden_states[:source_batch_size]
                 # inject conditional
-                hidden_states[2 * source_batch_size:] = hidden_states[:source_batch_size]
+                hidden_states[2 * source_batch_size:] = hidden_states[:source_batch_size]'''
 
             if self.conv_shortcut is not None:
                 input_tensor = self.conv_shortcut(input_tensor)

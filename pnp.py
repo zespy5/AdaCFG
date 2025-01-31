@@ -61,10 +61,10 @@ class PnPPipeline(nn.Module):
         self.unet = pipe.unet
 
         self.scheduler = DDIMScheduler.from_pretrained(model_key, subfolder="scheduler")
-        
+
         self.inversion_timesteps = reversed(self.scheduler.timesteps)
         self.scheduler.set_timesteps(self.n_timestep, device=self.device)
-        
+
         
         self.image_processor = None
         self.i2t_model = None
@@ -207,7 +207,7 @@ class PnPPipeline(nn.Module):
                  conditions : Optional[Union[str, List[str]]] = None,
                  guidance_scales : Optional[torch.Tensor] = None,
                  negative_prompt: Optional[str] = None,
-                 latents_save_root : Optional[str] = 'latents_forward',
+                 latents_save_root : str = 'latents_forward',
                  ):
         # make list variable
         image_dirs = [image_dirs] if not isinstance(image_dirs, list) else image_dirs

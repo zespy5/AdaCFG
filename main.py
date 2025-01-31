@@ -29,7 +29,7 @@ def main():
     dirs = [*Path('image_data').glob('*')]
     
     tensor = torch.tensor([[50,0.00085,0.015],
-                       [70,0.00085,0.012]])
+                           [70,0.00085,0.012]])
 
     guidance_schedulers = guidance_scheduler.get_guidance_scales(tensor)
     results = pipe(image_dirs=dirs[:2],
