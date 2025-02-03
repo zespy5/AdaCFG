@@ -9,27 +9,41 @@ def seed_everything(seed):
     random.seed(seed)
     np.random.seed(seed)
 
-def register_time(model, t, num_conditions: int=1):
-    #add condition num +2 (origin "" & negative prompt)
-    num_conditions+=2
+def register_time(model, t):
     
     conv_module = model.unet.up_blocks[1].resnets[1]
     setattr(conv_module, 't', t)
-    setattr(conv_module, 'num_conditions', num_conditions)
     down_res_dict = {0: [0, 1], 1: [0, 1], 2: [0, 1]}
     up_res_dict = {1: [0, 1, 2], 2: [0, 1, 2], 3: [0, 1, 2]}
     for res in up_res_dict:
         for block in up_res_dict[res]:
             module = model.unet.up_blocks[res].attentions[block].transformer_blocks[0].attn1
             setattr(module, 't', t)
-            setattr(module, 'num_conditions', num_conditions)
     for res in down_res_dict:
         for block in down_res_dict[res]:
             module = model.unet.down_blocks[res].attentions[block].transformer_blocks[0].attn1
             setattr(module, 't', t)
-            setattr(module, 'num_conditions', num_conditions)
     module = model.unet.mid_block.attentions[0].transformer_blocks[0].attn1
     setattr(module, 't', t)
+
+    
+def register_condition_num(model, num_conditions: int=1):
+    #add condition num +2 (origin "" & negative prompt)
+    num_conditions+=2
+    
+    conv_module = model.unet.up_blocks[1].resnets[1]
+    setattr(conv_module, 'num_conditions', num_conditions)
+    down_res_dict = {0: [0, 1], 1: [0, 1], 2: [0, 1]}
+    up_res_dict = {1: [0, 1, 2], 2: [0, 1, 2], 3: [0, 1, 2]}
+    for res in up_res_dict:
+        for block in up_res_dict[res]:
+            module = model.unet.up_blocks[res].attentions[block].transformer_blocks[0].attn1
+            setattr(module, 'num_conditions', num_conditions)
+    for res in down_res_dict:
+        for block in down_res_dict[res]:
+            module = model.unet.down_blocks[res].attentions[block].transformer_blocks[0].attn1
+            setattr(module, 'num_conditions', num_conditions)
+    module = model.unet.mid_block.attentions[0].transformer_blocks[0].attn1
     setattr(module, 'num_conditions', num_conditions)
 
 
@@ -66,14 +80,6 @@ def register_attention_control_efficient(model, injection_schedule):
                 
                 q = q.repeat(self.num_conditions,1,1)
                 k = k.repeat(self.num_conditions,1,1)
-
-                '''source_batch_size = int(q.shape[0] // 3)
-                # inject unconditional
-                q[source_batch_size:2 * source_batch_size] = q[:source_batch_size]
-                k[source_batch_size:2 * source_batch_size] = k[:source_batch_size]
-                # inject conditional
-                q[2 * source_batch_size:] = q[:source_batch_size]
-                k[2 * source_batch_size:] = k[:source_batch_size]'''
 
                 q = self.head_to_batch_dim(q)
                 k = self.head_to_batch_dim(k)

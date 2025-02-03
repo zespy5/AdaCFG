@@ -25,14 +25,15 @@ class PnPPipeline(nn.Module):
                  seed : int = 1,
                  latents_steps : int=1000,
                  device : str = 'cuda',
-                 generate_condition_prompt : bool = True,
+                 generate_condition_prompt : bool = False,
                  init_text :str = "a photography of",
-                 tensor_out : bool = False
+                 tensor_out : bool = False,
+                 train_mode : bool = False,
                  ):
         super().__init__()
 
         self.device = device
-        self.generate_condition_prompt = generate_condition_prompt
+        self.generate_condition_prompt = generate_condition_prompt #if only input the condition
         self.init_text = init_text
         self.latents_steps = latents_steps
         self.seed = seed
@@ -40,6 +41,7 @@ class PnPPipeline(nn.Module):
         self.pnp_attn_t = int(n_timestep*pnp_attn_t)
         self.pnp_f_t = int(n_timestep*pnp_f_t)
         self.tensor_out = tensor_out
+        self._train_mode = train_mode
         
 
         if sd_version == '2.1':
@@ -76,22 +78,23 @@ class PnPPipeline(nn.Module):
             
         self.init_pnp(self.pnp_f_t, self.pnp_attn_t)
         
-        for p in self.vae.parameters():
-            p.requires_grad=False
+        if self._train_mode:
+            for p in self.vae.parameters():
+                p.requires_grad=False
+                
+            for p in self.text_encoder.parameters():
+                p.requires_grad=False
+                
+            for p in self.unet.parameters():
+                p.requires_grad=False
             
-        for p in self.text_encoder.parameters():
-            p.requires_grad=False
-            
-        for p in self.unet.parameters():
-            p.requires_grad=False
-            
-        
         
     def init_pnp(self, conv_injection_t, qk_injection_t):
         self.qk_injection_timesteps = self.scheduler.timesteps[:qk_injection_t] if qk_injection_t >= 0 else []
         self.conv_injection_timesteps = self.scheduler.timesteps[:conv_injection_t] if conv_injection_t >= 0 else []
         register_attention_control_efficient(self, self.qk_injection_timesteps)
         register_conv_control_efficient(self, self.conv_injection_timesteps)
+       
         
     @torch.no_grad()
     def generate_prompt(self, image_dirs):
@@ -105,21 +108,11 @@ class PnPPipeline(nn.Module):
         outputs = self.i2t_model.generate(**inputs)
 
         captions = [self.image_processor.decode(out, skip_special_tokens=True) for out in outputs]
-
         captions = [cap.replace(' at night','') for cap in captions]
 
         return captions
         
-    def save_tensor(self, save_dir):
-        scales_save = save_dir/f'scale-mean-std.pt'
-
-        noise_scale = torch.tensor(self.noise_scale).unsqueeze(0)
-        noise_mean = torch.tensor(self.noise_mean).unsqueeze(0)
-        noise_std = torch.tensor(self.noise_std).unsqueeze(0)
-        noise_info = torch.cat([noise_scale, noise_mean, noise_std])
-        torch.save(noise_info, scales_save)
-
-
+        
     @torch.no_grad()
     def get_text_embeds(self, prompt):
         text_input = self.tokenizer(prompt, padding='max_length', max_length=self.tokenizer.model_max_length,
@@ -137,47 +130,74 @@ class PnPPipeline(nn.Module):
         return img
 
 
-
-    #@torch.no_grad()
     def denoise_step(self, x, t, i):
-        batch_size = x.shape[0]
+        batch_size, channels, h, w = x.shape
         # register the time step and features in pnp injection modules
         source_latents = [self.load_source_latents_t(t,latent) for latent in self.source_latents_save_dirs]
         source_latents = torch.cat(source_latents).to(self.device)
-        latent_model_input = torch.cat([source_latents] + ([x] * 2))
+        _xs = [x]*(self.num_condition+1)
+        latent_model_input = torch.cat([source_latents] + _xs)
+        # latent_model_input [batch*(num_condition+2), 4, 64, 64]
 
         register_time(self, t.item())
 
         # compute text embeddings
         text_embed_input = torch.cat([self.pnp_guidance_embeds, self.negative_text_embeds, self.text_embeds], dim=0)
+        # pnp_guidance_embeds [batch, 77, 1024]
+        # negative_text_embeds [batch, 77, 1024]
+        # text_embeds [batch*num_condition, 77, 1024]
+
+        # apply the denoising network
         with torch.no_grad():
-            # apply the denoising network
             noise_pred = self.unet(latent_model_input, t, encoder_hidden_states=text_embed_input)['sample']
+        '''# noise_pred [batch*(num_condition+2), 4, 64, 64]
+        _num_condition = self.num_condition+2
+        noise_pred_uncond = noise_pred[batch_size:2*batch_size]
+        noise_pred_cond = noise_pred[2*batch_size:]
+        #breakpoint()
+        likelihood = noise_pred_cond - noise_pred_uncond.unsqueeze(1)
+        #breakpoint()
+        adaptive_likelihood = torch.sum(likelihood,dim=1)
+        #breakpoint()
+        noise_pred = noise_pred_uncond+adaptive_likelihood'''
+        
 
-        guide = self.guidance_scales[:,i].view(batch_size,1,1,1)
         # perform guidance
-        _, noise_pred_uncond, noise_pred_cond = noise_pred.chunk(3)
+        _num_condition = self.num_condition+2
+        noise_pred = noise_pred.chunk(_num_condition)
+        #breakpoint()
+        noise_pred_uncond = noise_pred[1]
+        #breakpoint()
+        noise_pred_conds = noise_pred[2:]
+        #breakpoint()
+        
+        likelihood = torch.zeros_like(noise_pred_uncond)
+        for c in range(self.num_condition):
+            guide = self.guidance_scales[:,c,i].view(batch_size,1,1,1)
+            likelihood += guide*(noise_pred_conds[c] - noise_pred_uncond)
 
-        noise_pred = noise_pred_uncond + guide * (noise_pred_cond - noise_pred_uncond)
+        #breakpoint()
+        #likelihood [batch_size*num_condition, 4,64,64]
+        adaptive_likelihood = likelihood
+        #adaptive_likelihood = torch.sum(adaptive_likelihood, dim=1)
+        #adaptive_likelihood [batch_size,4,64,64]
+        #breakpoint()
+        noise_pred = noise_pred_uncond + adaptive_likelihood
+        #noise_pred[batch_size,4,64,64]
 
-        # todo : noise scale check
-        '''
-        self.noise_scale.append(torch.mean(noise_pred**2).sqrt().item())
-        self.noise_mean.append(torch.mean(noise_pred).item())
-        self.noise_std.append(torch.std(noise_pred).item())'''
         
         # compute the denoising step with the reference model
         denoised_latent = self.scheduler.step(noise_pred, t, x)['prev_sample']
+        
         return denoised_latent
 
         
     def sample_loop(self, x):
-        with torch.autocast(device_type='cuda', dtype=torch.float32):
+        with torch.autocast(device_type=self.device, dtype=torch.float32):
             for i, t in enumerate(self.scheduler.timesteps):
                 x = self.denoise_step(x, t, i)
 
             decoded_latent = self.decode_latent(x)
-    
         return decoded_latent
     
     
@@ -186,7 +206,6 @@ class PnPPipeline(nn.Module):
         latents_t_path = latents_path/f'noisy_latents_{t}.pt'
         assert latents_t_path.exists(), f'Missing latents at t {t} path {latents_path.stem}'
         latents = torch.load(latents_t_path, weights_only=False)
-        
         return latents
     
     
@@ -194,57 +213,62 @@ class PnPPipeline(nn.Module):
         
         init_timestep = self.scheduler.timesteps[0]
         
-        #assert len(self.source_latents_save_dirs)==0, 'There is no source latents save directories'
-
         latents_paths = [latent/f'noisy_latents_{init_timestep}.pt' for latent in self.source_latents_save_dirs]
         noisy_latents = [torch.load(path, weights_only=False) for path in latents_paths]
         noisy_latents = torch.cat(noisy_latents).to(self.device, dtype=torch.float32)
         return noisy_latents
     
+    
     def __call__(self,
+                 num_condition : int = 1,
                  image_dirs : Union[Path, List[Path]] = None,
                  prompts : Optional[Union[str, List[str]]] = None,
-                 conditions : Optional[Union[str, List[str]]] = None,
+
                  guidance_scales : Optional[torch.Tensor] = None,
                  negative_prompt: Optional[str] = None,
                  latents_save_root : str = 'latents_forward',
                  ):
-        # make list variable
-        image_dirs = [image_dirs] if not isinstance(image_dirs, list) else image_dirs
+
+        #setting the number of conditions
+        self.num_condition = num_condition
+        register_condition_num(self, self.num_condition)
         
-        
-        
-        # make latent root
-        latent_save_root_dir = Path(latents_save_root)
-        latent_save_root_dir.mkdir(exist_ok=True)
-        
-        # define batch size
-        if image_dirs is not None and isinstance(image_dirs, Path):
-            batch_size = 1
-        elif image_dirs is not None and isinstance(image_dirs, list):
+        if image_dirs is not None:
+            # make list variable
+            image_dirs = [image_dirs] if not isinstance(image_dirs, list) else image_dirs
+            
+            # make latent root
+            latent_save_root_dir = Path(latents_save_root)
+            latent_save_root_dir.mkdir(exist_ok=True)
+            #path list, len= num_batch
+            
             batch_size = len(image_dirs)
-        else:
-            batch_size =1
             
-        # define guidance scales
-        if guidance_scales is None:
-            alpha = self.scheduler.alphas_cumprod.to(self.device)
-            alpha = alpha[self.scheduler.timesteps]
-            _guidance = 50*alpha.unsqueeze(0).repeat(batch_size,1).flip(1)
-            self.guidance_scales= _guidance    
-        else:
-            self.guidance_scales = guidance_scales.to(self.device)
-        
-        #generate prompt
+            # check latents, create latents
+            last_step = self.inversion_timesteps[-1]
+            
+            self.source_latents_save_dirs = []
+            
+            for img_dir in image_dirs:
+                source_latent_save_dir = latent_save_root_dir/img_dir.stem
+                self.source_latents_save_dirs.append(source_latent_save_dir)
+                
+                source_latent_last_step_file = source_latent_save_dir/f'noisy_latents_{last_step}.pt'
+                if not source_latent_last_step_file.exists():
+                    source_latent_save_dir.mkdir(exist_ok=True)
+                    self.extract_latents(img_dir, source_latent_save_dir)
+                    
+            # call latent zT
+            zT = self.get_T_noise()
+            #zT = tensor[batch,4,64,64]
+
+
+        #todo: multicondition
+        #image to text
         if self.generate_condition_prompt:
-            prompts = self.generate_prompt(image_dirs)
-            
+            i2t = self.generate_prompt(image_dirs)
             #combine with condition
-            if conditions is not None and isinstance(conditions, list):
-                num_conditions = len(conditions)
-                prompts = [prompts[i]+conditions[np.random.randint(0, num_conditions)] for i in range(batch_size)]
-            elif conditions is not None and isinstance(conditions, str):
-                prompts = [prompts[i]+conditions for i in range(batch_size)]
+            prompts = [[i2t[i]+prompts[j][i] for i in range(batch_size)] for j in range(self.num_condition)]
         elif prompts is None:
             prompts = ""
             print(f"Warning : the prompt is Null text")
@@ -254,37 +278,25 @@ class PnPPipeline(nn.Module):
         negative_prompt = "" if negative_prompt==None else negative_prompt
             
         # text encoding
-        self.text_embeds = self.get_text_embeds(prompts)
+        text_embeds = [self.get_text_embeds(prompts[i]) for i in range(num_condition)]
+        self.text_embeds = torch.cat(text_embeds)
+        # text_embeds [batch_size*numcondition, 77, 768]
         negative_text_embeds : torch.Tensor = self.get_text_embeds(negative_prompt)
         pnp_guidance_embeds : torch.Tensor = self.get_text_embeds("")
         
         self.pnp_guidance_embeds = pnp_guidance_embeds.repeat(batch_size,1,1)
         self.negative_text_embeds = negative_text_embeds.repeat(batch_size,1,1)
+
         
-        # to do: noise scale check
-        '''self.noise_scale = []
-        self.noise_mean = []
-        self.noise_std = []'''
-            
-        # check latents, create latents
-        last_step = self.inversion_timesteps[-1]
-        
-        self.source_latents_save_dirs = []
-        
-        for img_dir in image_dirs:
-            source_latent_save_dir = latent_save_root_dir/img_dir.stem
-            self.source_latents_save_dirs.append(source_latent_save_dir)
-            
-            source_latent_last_step_file = source_latent_save_dir/f'noisy_latents_{last_step}.pt'
-            if source_latent_last_step_file.exists():
-                #print(f'There exist {img_dir.stem} latent files')
-                pass
-            else:
-                source_latent_save_dir.mkdir(exist_ok=True)
-                self.extract_latents(img_dir, source_latent_save_dir)
-                
-        # call latent zT
-        zT = self.get_T_noise()
+        # define guidance scales
+        if guidance_scales is None:
+            alpha = self.scheduler.alphas_cumprod.to(self.device)
+            alpha = alpha[self.scheduler.timesteps]
+            _guidance = 20*alpha.unsqueeze(0).repeat(self.num_condition,1).flip(1)
+            _guidance = _guidance.unsqueeze(0).repeat(batch_size,1,1)
+            self.guidance_scales= _guidance    
+        else:
+            self.guidance_scales = guidance_scales.to(self.device)
         
         # denoising
         decoded_latent = self.sample_loop(zT)

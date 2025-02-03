@@ -14,7 +14,6 @@ BICUBIC = InterpolationMode.BICUBIC
 class Loss(nn.Module):
     
     def __init__(self,
-                 conditions : Optional[Union[str, List[str]]]= None,
                  negative_prompt : str = 'ugly, blurry, low res, unrealistic, paint',
                  lambda_text : float = 0.5,
                  lambda_structure: float = 2.5,
@@ -22,23 +21,28 @@ class Loss(nn.Module):
                  data_root : str='image_data/train',
                  save_image_path : Optional[str]= None,
                  latents_save_root : str = 'latents_forward',
+                 dino_threshold : float = 0.2,
+                 num_condition : int = 3,
                  ):
         super().__init__()
         
         self.device = device
-        self.conditions = conditions
         self.negative_prompt = negative_prompt
         self.lambda_text = lambda_text
         self.lambda_structure = lambda_structure
         self.save_image_path = save_image_path
         self.latents_save_root = latents_save_root
+        self.dino_threshold = dino_threshold
+        self.num_condition = num_condition
         
         self.data_root = Path(data_root)
         
         self.pipeline = PnPPipeline(generate_condition_prompt=False,
                                     device=self.device,
-                                    tensor_out=True)
-        self.guidance_scheduler = GuidanceScheduler(device=self.device)
+                                    tensor_out=True,
+                                    train_mode=True)
+        self.guidance_scheduler = GuidanceScheduler(device=self.device,
+                                                    num_condition=self.num_condition)
         
         self.clip_model = CLIPModel.from_pretrained("openai/clip-vit-large-patch14").to(self.device)
         self.clip_processor = CLIPProcessor.from_pretrained("openai/clip-vit-large-patch14")
@@ -73,8 +77,9 @@ class Loss(nn.Module):
     def generate_edited_image(self, image_dirs, prompts, guidance_info):
 
         scheduled_guidance = self.guidance_scheduler.get_guidance_scales(guidance_info)
-    
-        outputs = self.pipeline(image_dirs=image_dirs,
+
+        outputs = self.pipeline(num_condition=self.num_condition,
+                                image_dirs=image_dirs,
                                 prompts = prompts,
                                 guidance_scales=scheduled_guidance,
                                 negative_prompt=self.negative_prompt,
@@ -140,10 +145,13 @@ class Loss(nn.Module):
                                                    prompts=prompts,
                                                    guidance_info=guidance_info)
 
-        text_loss = self.clip_loss(gen_images, prompts)
+        text_losses = [self.clip_loss(gen_images, p).unsqueeze(0) for p in prompts]
+
+        text_loss = torch.cat(text_losses).sum()
+
         structure_loss = self.dino_loss(real_images, gen_images)
-        
-        threshold = torch.ones_like(structure_loss)*0.2
+
+        threshold = torch.ones_like(structure_loss)*self.dino_threshold
         thresholded_structure_loss = self.lambda_structure*torch.max(threshold,structure_loss)
 
         loss = self.lambda_text*text_loss + thresholded_structure_loss

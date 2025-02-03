@@ -46,7 +46,6 @@ class GuidanceModel(nn.Module):
 
         out = self.MLP(x)
         out = self.out(out)
-        #out = out*0.1
         out = torch.sigmoid(out/self.init_G)*self.init_G+1
 
         return out

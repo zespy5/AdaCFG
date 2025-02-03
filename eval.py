@@ -15,7 +15,7 @@ from pathlib import Path
 from PIL import Image
 import torchvision.transforms as T
 from utils.utils import generate_prompt
-
+from random import randint
 @torch.no_grad()
 def eval(model,
          data_root:str,
@@ -24,13 +24,20 @@ def eval(model,
          epoch,
          device,
          model_device):
+    num_condition = len(conditions)
     data_root = Path(data_root)
-    eval_datas = [*data_root.glob('*')]
-    criterion = Loss(lambda_text=2.5,
+    eval_datas = sorted([*data_root.glob('*')])
+    criterion = Loss(lambda_text=1.0,
                      lambda_structure=1.0,
                      device=device,
                      data_root=data_root,
-                     latents_save_root='eval_latents_forward').to(device)
+                     latents_save_root='eval_latents_forward',
+                     dino_threshold=0.2,
+                     num_condition=num_condition).to(device)
+    
+    seasons, weathers, times = conditions
+    
+    
     
     conditioned_prompt_embedds = criterion.prompt_embeds
     original_image_embedds = criterion.image_clip_embeds
@@ -41,7 +48,7 @@ def eval(model,
     save_dir.mkdir(exist_ok=True)
     
     num_instance = len(eval_datas)
-    num_conditions = len(conditions)
+    batch_size = 5
     total_loss = 0
     print('Evaluate')
     with tqdm(eval_datas) as t:
@@ -49,21 +56,37 @@ def eval(model,
             #image to text
             image_dirs = [image_path]
             real_images = [Image.open(image_path).convert('RGB')]
-            original_prompts = [generate_prompt(real_images[0])]
+            ##original_prompts = [generate_prompt(real_images[0])]
             
-            image_dirs = image_dirs*num_conditions
-            real_images = real_images*num_conditions
-            original_prompts = original_prompts*num_conditions
+            image_dirs = image_dirs*batch_size
+            real_images = real_images*batch_size
+            ##original_prompts = original_prompts*num_conditions
             
             #select random condition
 
-            construct_prompts = [p.replace(' at night','') for p in original_prompts]
-            conditioned_prompts = [construct_prompts[i]+conditions[i] for i in range(num_conditions)]
+            ##construct_prompts = [p.replace(' at night','') for p in original_prompts]
+            ##conditioned_prompts = [construct_prompts[i]+conditions[i] for i in range(num_conditions)]
 
             #text clip embedding : model inputs
+            ##original_image_emb = original_image_embedds(real_images)
+            ##conditioned_prompt_emb = conditioned_prompt_embedds(conditioned_prompts)
+            ##prompt_emb = torch.cat([original_image_emb, conditioned_prompt_emb], dim=1)
+            season_prompts = [seasons[randint(0,3)] for _ in range(batch_size)]
+            weather_prompts = [weathers[randint(0,4)] for _ in range(batch_size)]
+            time_prompts = [times[randint(0,3)] for _ in range(batch_size)]
+            
+            season_prompt_embed = conditioned_prompt_embedds(season_prompts)
+            weather_prompt_embed = conditioned_prompt_embedds(weather_prompts)
+            time_prompt_embed = conditioned_prompt_embedds(time_prompts)
+            
+            style_prompts = [season_prompts, weather_prompts, time_prompts]
+
             original_image_emb = original_image_embedds(real_images)
-            conditioned_prompt_emb = conditioned_prompt_embedds(conditioned_prompts)
-            prompt_emb = torch.cat([original_image_emb, conditioned_prompt_emb], dim=1)
+
+            prompt_emb = torch.cat([original_image_emb,
+                                    season_prompt_embed,
+                                    weather_prompt_embed,
+                                    time_prompt_embed], dim=1)
             prompt_emb = prompt_emb.to(model_device)
             
             predicts = model(prompt_emb)
@@ -72,7 +95,7 @@ def eval(model,
             
             loss, gen_images, prompts_c = criterion(image_dirs=image_dirs,
                                     real_images=real_images,
-                                    prompts=conditioned_prompts, 
+                                    prompts=style_prompts, 
                                     guidance_info= predicts)
             t.set_postfix(loss=loss.item())
             
@@ -80,7 +103,7 @@ def eval(model,
             edited_imgs = [T.ToPILImage()(latent) for latent in gen_images]
             for a in range(len(edited_imgs)):
                 length = len([*save_dir.glob('*')])
-                s = save_dir/f'{length:03}-{prompts_c[a]}-{int(preds.item(a,0))}.png'
+                s = save_dir/f'{length:03}-{prompts_c[0][a]}-{int(preds.item(a,0))}-{prompts_c[1][a]}-{int(preds.item(a,1))}-{prompts_c[2][a]}-{int(preds.item(a,2))}.png'
                 edited_imgs[a].save(s)
 
             total_loss += loss.item()
