@@ -27,7 +27,7 @@ def eval(model,
     num_condition = len(conditions)
     data_root = Path(data_root)
     eval_datas = sorted([*data_root.glob('*')])
-    criterion = Loss(lambda_text=2.5,
+    criterion = Loss(lambda_text=2.0,
                      lambda_structure=1.0,
                      device=device,
                      data_root=data_root,
@@ -76,16 +76,16 @@ def eval(model,
             weather_prompts = [weathers[randint(0,4)] for _ in range(batch_size)]
             time_prompts = [times[randint(0,3)] for _ in range(batch_size)]
             
-            s_season_prompts = [original_prompts[i]+seasons[i] for i in range(batch_size)]
-            s_weather_prompts = [original_prompts[i]+weathers[i] for i in range(batch_size)]
-            s_time_prompts = [original_prompts[i]+times[i] for i in range(batch_size)]
-            season_prompt_embed = conditioned_prompt_embedds(s_season_prompts)
-            weather_prompt_embed = conditioned_prompt_embedds(s_weather_prompts)
-            time_prompt_embed = conditioned_prompt_embedds(s_time_prompts)
+            s_season_prompts = [original_prompts[i]+season_prompts[i] for i in range(batch_size)]
+            s_weather_prompts = [original_prompts[i]+weather_prompts[i] for i in range(batch_size)]
+            s_time_prompts = [original_prompts[i]+time_prompts[i] for i in range(batch_size)]
+            season_prompt_embed = conditioned_prompt_embedds(s_season_prompts).unsqueeze(1)
+            weather_prompt_embed = conditioned_prompt_embedds(s_weather_prompts).unsqueeze(1)
+            time_prompt_embed = conditioned_prompt_embedds(s_time_prompts).unsqueeze(1)
             
             style_prompts = [season_prompts, weather_prompts, time_prompts]
 
-            original_image_emb = original_image_embedds(real_images)
+            original_image_emb = original_image_embedds(real_images).unsqueeze(1)
 
             prompt_emb = torch.cat([original_image_emb,
                                     season_prompt_embed,
@@ -93,16 +93,17 @@ def eval(model,
                                     time_prompt_embed], dim=1)
             prompt_emb = prompt_emb.to(model_device)
             
-            predicts = model(prompt_emb)
-            predicts = predicts.to(device)
-            
+            pred_ginit, pred_gportion = model(prompt_emb)
+            pred_ginit = pred_ginit.to(device)
+            pred_gportion = pred_gportion.to(device)
             
             loss, gen_images, prompts_c = criterion(image_dirs=image_dirs,
-                                    real_images=real_images,
-                                    prompts=style_prompts, 
-                                    guidance_info= predicts)
+                                                    real_images=real_images,
+                                                    prompts=style_prompts, 
+                                                    g_init=pred_ginit,
+                                                    g_portion= pred_gportion)
             t.set_postfix(loss=loss.item())
-            
+            predicts = pred_ginit*pred_gportion.squeeze()
             preds = predicts.detach().cpu().numpy()
             edited_imgs = [T.ToPILImage()(latent) for latent in gen_images]
             for a in range(len(edited_imgs)):

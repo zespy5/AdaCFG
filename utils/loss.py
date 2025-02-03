@@ -43,8 +43,7 @@ class Loss(nn.Module):
                                     device=self.device,
                                     tensor_out=True,
                                     train_mode=True)
-        self.guidance_scheduler = GuidanceScheduler(device=self.device,
-                                                    num_condition=self.num_condition)
+        self.guidance_scheduler = GuidanceScheduler(device=self.device)
         
         self.clip_model = CLIPModel.from_pretrained("openai/clip-vit-large-patch14").to(self.device)
         self.clip_processor = CLIPProcessor.from_pretrained("openai/clip-vit-large-patch14")
@@ -76,14 +75,15 @@ class Loss(nn.Module):
             
         return image_features
         
-    def generate_edited_image(self, image_dirs, prompts, guidance_info):
+    def generate_edited_image(self, image_dirs, prompts, g_init, g_portion):
 
-        scheduled_guidance = self.guidance_scheduler.get_guidance_scales(guidance_info)
+        scheduled_guidance = self.guidance_scheduler.get_guidance_scales(g_init)
 
         outputs = self.pipeline(num_condition=self.num_condition,
                                 image_dirs=image_dirs,
                                 prompts = prompts,
                                 guidance_scales=scheduled_guidance,
+                                guidance_portion=g_portion,
                                 negative_prompt=self.negative_prompt,
                                 latents_save_root=self.latents_save_root)
         gen_images = outputs.images
@@ -141,11 +141,13 @@ class Loss(nn.Module):
                 image_dirs,
                 real_images, 
                 prompts,
-                guidance_info:torch.Tensor):
+                g_init:torch.Tensor,
+                g_portion:torch.Tensor):
 
         gen_images, prompt_c = self.generate_edited_image(image_dirs=image_dirs, 
                                                    prompts=prompts,
-                                                   guidance_info=guidance_info)
+                                                   g_init=g_init,
+                                                   g_portion=g_portion)
 
         text_losses = [self.clip_loss(gen_images, p).unsqueeze(0) for p in prompts]
 

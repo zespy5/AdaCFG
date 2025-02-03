@@ -172,13 +172,14 @@ class PnPPipeline(nn.Module):
         #breakpoint()
         
         likelihood = torch.zeros_like(noise_pred_uncond)
+        guide = self.guidance_scales[:,i].view(batch_size,1,1,1)
         for c in range(self.num_condition):
-            guide = self.guidance_scales[:,c,i].view(batch_size,1,1,1)
-            likelihood += guide*(noise_pred_conds[c] - noise_pred_uncond)
+            g_portion = self.guidance_portion[:,c].view(batch_size,1,1,1)
+            likelihood += g_portion*(noise_pred_conds[c] - noise_pred_uncond)
 
         #breakpoint()
         #likelihood [batch_size*num_condition, 4,64,64]
-        adaptive_likelihood = likelihood
+        adaptive_likelihood = guide*likelihood
         #adaptive_likelihood = torch.sum(adaptive_likelihood, dim=1)
         #adaptive_likelihood [batch_size,4,64,64]
         #breakpoint()
@@ -225,6 +226,7 @@ class PnPPipeline(nn.Module):
                  prompts : Optional[Union[str, List[str]]] = None,
 
                  guidance_scales : Optional[torch.Tensor] = None,
+                 guidance_portion : Optional[torch.Tensor] = None,
                  negative_prompt: Optional[str] = None,
                  latents_save_root : str = 'latents_forward',
                  ):
@@ -292,11 +294,12 @@ class PnPPipeline(nn.Module):
         if guidance_scales is None:
             alpha = self.scheduler.alphas_cumprod.to(self.device)
             alpha = alpha[self.scheduler.timesteps]
-            _guidance = 20*alpha.unsqueeze(0).repeat(self.num_condition,1).flip(1)
-            _guidance = _guidance.unsqueeze(0).repeat(batch_size,1,1)
-            self.guidance_scales= _guidance    
+            _guidance = 20*alpha.unsqueeze(0).repeat(batch_size,1).flip(1)
+            self.guidance_scales  = _guidance
+            self.guidance_portion = (torch.ones((batch_size,self.num_condition))/self.num_condition).to(self.device)
         else:
-            self.guidance_scales = guidance_scales.to(self.device)
+            self.guidance_scales = guidance_scales
+            self.guidance_portion = guidance_portion
         
         # denoising
         decoded_latent = self.sample_loop(zT)

@@ -7,6 +7,7 @@ from data.Dataset import DomainChangeDataset
 from utils.loss import Loss
 from utils.utils import *
 from models.model import GuidanceModel
+from models.attn_model import AttentionModel
 import yaml
 from tqdm import tqdm
 from pytorch_lightning import seed_everything
@@ -22,7 +23,7 @@ from random import randint
 def train(data_root, train_device, eval_device):
     timestamp = get_timestamp()
     
-    name = f"work-{timestamp}-struc+condition 3, lambda_t 2.5, lambda_s 1, dino thres 0.2, init 40, lr 0.0001"
+    name = f"work-{timestamp}-tranformer struc+condition 3, lambda_t 2, lambda_s 1, dino thres 0.2, init 100, lr 0.0001"
         ############ WANDB INIT #############
     print("--------------- Wandb SETTING ---------------")
     dotenv.load_dotenv()
@@ -35,7 +36,7 @@ def train(data_root, train_device, eval_device):
         mode=os.environ.get("WANDB_MODE"),
     )
     
-    seed_everything(23)
+    seed_everything(54)
     
     seasons = [' on a summer day',
                ' on a spring day',
@@ -70,14 +71,18 @@ def train(data_root, train_device, eval_device):
     
     dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
 
-    model = GuidanceModel(init_g= 40.0,
+    '''model = GuidanceModel(init_g= 40.0,
                           num_guidance_info=3,
                           linear_in_size=3072,
                           num_mlp_layers=4,
                           hidden_act='gelu',
-                          device=train_device).to(train_device)
+                          device=train_device).to(train_device)'''
+                          
+    model = AttentionModel(hidden_dim=768,
+                           heads=4,
+                           init_g=100.0).to(train_device)
     
-    criterion = Loss(lambda_text=2.5,
+    criterion = Loss(lambda_text=2.0,
                      lambda_structure=1.0,
                      device=train_device,
                      data_root=data_root,
@@ -118,9 +123,9 @@ def train(data_root, train_device, eval_device):
                 s_season_prompts = [original_prompts[i]+season_prompts[i] for i in range(batch_size)]
                 s_weather_prompts = [original_prompts[i]+weather_prompts[i] for i in range(batch_size)]
                 s_time_prompts = [original_prompts[i]+time_prompts[i] for i in range(batch_size)]
-                season_prompt_embed = conditioned_prompt_embedds(s_season_prompts)
-                weather_prompt_embed = conditioned_prompt_embedds(s_weather_prompts)
-                time_prompt_embed = conditioned_prompt_embedds(s_time_prompts)
+                season_prompt_embed = conditioned_prompt_embedds(s_season_prompts).unsqueeze(1)
+                weather_prompt_embed = conditioned_prompt_embedds(s_weather_prompts).unsqueeze(1)
+                time_prompt_embed = conditioned_prompt_embedds(s_time_prompts).unsqueeze(1)
                 
                 style_prompts = [season_prompts, weather_prompts, time_prompts]
                 
@@ -129,20 +134,22 @@ def train(data_root, train_device, eval_device):
                 ##conditioned_prompts = [construct_prompts[i]+style_prompts[i] for i in range(len(idxs))]
                 
                 #text clip embedding : model inputs
-                original_image_emb = original_image_embedds(real_images)
+                original_image_emb = original_image_embedds(real_images).unsqueeze(1)
                 ##conditioned_prompt_emb = conditioned_prompt_embedds(conditioned_prompts)
                 prompt_emb = torch.cat([original_image_emb,
                                         season_prompt_embed,
                                         weather_prompt_embed,
                                         time_prompt_embed], dim=1)
+
                 prompt_emb.to(train_device)
 
-                predicts = model(prompt_emb)
+                pred_ginit, pred_gportion = model(prompt_emb)
 
                 loss, _g, _p = criterion(image_dirs=image_dirs,
                                        real_images=real_images,
                                        prompts=style_prompts, 
-                                       guidance_info= predicts)
+                                       g_init=pred_ginit,
+                                       g_portion= pred_gportion)
                 t.set_postfix(loss=loss.item())
 
                 #edited_imgs = [T.ToPILImage()(latent) for latent in _g]
@@ -151,6 +158,7 @@ def train(data_root, train_device, eval_device):
                 loss.backward()
                 optimizer.step()
                 
+                predicts = pred_ginit*pred_gportion.squeeze()
                 preds = predicts.detach().cpu().numpy()
                 log_conditions_values ={}
                 for ps in range(len(preds)):

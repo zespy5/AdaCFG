@@ -69,7 +69,7 @@ class AttentionModel(nn.Module):
                  heads : int,
                  init_g : float
                  ):
-        
+        super().__init__()
         self.hidden_dim = hidden_dim
         self.heads = heads
         self.init_g = init_g
@@ -77,19 +77,17 @@ class AttentionModel(nn.Module):
         self.attn = Attention(self.hidden_dim, self.heads)
         self.ff = FeedForward(self.hidden_dim)
         
-        self.g_init_W = nn.Linear(self.hidden_dim, 1)
-        self.coditions_W = nn.Linear(self.hidden_dim,1)
+        self.W = nn.Linear(self.hidden_dim, 1)
+
         
     def forward(self, hidden_states):
-        
+
         hidden_states = self.attn(hidden_states)
         hidden_states = self.ff(hidden_states)
-        
-        g_cls = hidden_states[:,0]
-        c_token = hidden_states[:,1:]
-        
-        g_init = self.g_init_W(g_cls)
-        condition_portion = self.coditions_W(c_token).squeeze()
+
+        output = self.W(hidden_states)
+        g_init = output[:,0]
+        condition_portion = output[:,1:]
         
         g_init = torch.sigmoid(g_init/self.init_g)*self.init_g +1
         condition_portion = torch.softmax(condition_portion,dim=1)
