@@ -23,6 +23,7 @@ class Loss(nn.Module):
                  latents_save_root : str = 'latents_forward',
                  dino_threshold : float = 0.2,
                  num_condition : int = 3,
+                 generate_condition_prompt: bool =False,
                  ):
         super().__init__()
         
@@ -34,10 +35,11 @@ class Loss(nn.Module):
         self.latents_save_root = latents_save_root
         self.dino_threshold = dino_threshold
         self.num_condition = num_condition
+        self.generate_condition_prompt = generate_condition_prompt
         
         self.data_root = Path(data_root)
         
-        self.pipeline = PnPPipeline(generate_condition_prompt=False,
+        self.pipeline = PnPPipeline(generate_condition_prompt=self.generate_condition_prompt,
                                     device=self.device,
                                     tensor_out=True,
                                     train_mode=True)

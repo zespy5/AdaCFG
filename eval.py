@@ -27,13 +27,14 @@ def eval(model,
     num_condition = len(conditions)
     data_root = Path(data_root)
     eval_datas = sorted([*data_root.glob('*')])
-    criterion = Loss(lambda_text=1.0,
+    criterion = Loss(lambda_text=2.5,
                      lambda_structure=1.0,
                      device=device,
                      data_root=data_root,
                      latents_save_root='eval_latents_forward',
                      dino_threshold=0.2,
-                     num_condition=num_condition).to(device)
+                     num_condition=num_condition,
+                     generate_condition_prompt=True).to(device)
     
     seasons, weathers, times = conditions
     
@@ -60,7 +61,7 @@ def eval(model,
             
             image_dirs = image_dirs*batch_size
             real_images = real_images*batch_size
-            ##original_prompts = original_prompts*num_conditions
+            original_prompts = original_prompts*batch_size
             
             #select random condition
 
@@ -75,9 +76,12 @@ def eval(model,
             weather_prompts = [weathers[randint(0,4)] for _ in range(batch_size)]
             time_prompts = [times[randint(0,3)] for _ in range(batch_size)]
             
-            season_prompt_embed = conditioned_prompt_embedds(season_prompts)
-            weather_prompt_embed = conditioned_prompt_embedds(weather_prompts)
-            time_prompt_embed = conditioned_prompt_embedds(time_prompts)
+            s_season_prompts = [original_prompts[i]+seasons[i] for i in range(batch_size)]
+            s_weather_prompts = [original_prompts[i]+weathers[i] for i in range(batch_size)]
+            s_time_prompts = [original_prompts[i]+times[i] for i in range(batch_size)]
+            season_prompt_embed = conditioned_prompt_embedds(s_season_prompts)
+            weather_prompt_embed = conditioned_prompt_embedds(s_weather_prompts)
+            time_prompt_embed = conditioned_prompt_embedds(s_time_prompts)
             
             style_prompts = [season_prompts, weather_prompts, time_prompts]
 
@@ -103,7 +107,7 @@ def eval(model,
             edited_imgs = [T.ToPILImage()(latent) for latent in gen_images]
             for a in range(len(edited_imgs)):
                 length = len([*save_dir.glob('*')])
-                s = save_dir/f'{length:03}-{prompts_c[0][a]}-{int(preds.item(a,0))}-{prompts_c[1][a]}-{int(preds.item(a,1))}-{prompts_c[2][a]}-{int(preds.item(a,2))}.png'
+                s = save_dir/f'{length:03}-{prompts_c[0][a]}-{int(preds.item(a,0))}-{style_prompts[1][a]}-{int(preds.item(a,1))}-{style_prompts[2][a]}-{int(preds.item(a,2))}.png'
                 edited_imgs[a].save(s)
 
             total_loss += loss.item()

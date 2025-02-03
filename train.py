@@ -22,7 +22,7 @@ from random import randint
 def train(data_root, train_device, eval_device):
     timestamp = get_timestamp()
     
-    name = f"work-{timestamp}-condition 3, lambda_t 1, lambda_s 1, dino thres 0.2, init 50, lr 0.00005"
+    name = f"work-{timestamp}-struc+condition 3, lambda_t 2.5, lambda_s 1, dino thres 0.2, init 40, lr 0.0001"
         ############ WANDB INIT #############
     print("--------------- Wandb SETTING ---------------")
     dotenv.load_dotenv()
@@ -70,23 +70,24 @@ def train(data_root, train_device, eval_device):
     
     dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
 
-    model = GuidanceModel(init_g= 50.0,
+    model = GuidanceModel(init_g= 40.0,
                           num_guidance_info=3,
                           linear_in_size=3072,
                           num_mlp_layers=4,
                           hidden_act='gelu',
                           device=train_device).to(train_device)
     
-    criterion = Loss(lambda_text=1.0,
+    criterion = Loss(lambda_text=2.5,
                      lambda_structure=1.0,
                      device=train_device,
                      data_root=data_root,
                      dino_threshold=0.2,
-                     num_condition=3).to(train_device)
+                     num_condition=3,
+                     generate_condition_prompt=True).to(train_device)
     
     conditioned_prompt_embedds = criterion.prompt_embeds
     original_image_embedds = criterion.image_clip_embeds
-    lr = 0.00005
+    lr = 0.0001
 
     optimizer = torch.optim.Adam(model.parameters(), lr)
     optimizer_scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer=optimizer,
@@ -103,7 +104,7 @@ def train(data_root, train_device, eval_device):
                 idxs= image_idx.numpy()
                 image_dirs = [data_root/f'{idx:03}.png' for idx in idxs]
                 real_images = [Image.open(img).convert('RGB') for img in image_dirs]
-                ##original_prompts = [generate_prompt(img) for img in real_images]
+                original_prompts = [generate_prompt(img) for img in real_images]
                 
                 #select random condition
                 ##condition_idxs = torch.randint(num_conditions,(len(idxs),))
@@ -114,9 +115,12 @@ def train(data_root, train_device, eval_device):
                 weather_prompts = [weathers[randint(0,5)] for _ in range(batch_size)]
                 time_prompts = [times[randint(0,4)] for _ in range(batch_size)]
                 
-                season_prompt_embed = conditioned_prompt_embedds(season_prompts)
-                weather_prompt_embed = conditioned_prompt_embedds(weather_prompts)
-                time_prompt_embed = conditioned_prompt_embedds(time_prompts)
+                s_season_prompts = [original_prompts[i]+season_prompts[i] for i in range(batch_size)]
+                s_weather_prompts = [original_prompts[i]+weather_prompts[i] for i in range(batch_size)]
+                s_time_prompts = [original_prompts[i]+time_prompts[i] for i in range(batch_size)]
+                season_prompt_embed = conditioned_prompt_embedds(s_season_prompts)
+                weather_prompt_embed = conditioned_prompt_embedds(s_weather_prompts)
+                time_prompt_embed = conditioned_prompt_embedds(s_time_prompts)
                 
                 style_prompts = [season_prompts, weather_prompts, time_prompts]
                 
@@ -135,14 +139,12 @@ def train(data_root, train_device, eval_device):
 
                 predicts = model(prompt_emb)
 
-
                 loss, _g, _p = criterion(image_dirs=image_dirs,
                                        real_images=real_images,
                                        prompts=style_prompts, 
                                        guidance_info= predicts)
                 t.set_postfix(loss=loss.item())
 
-                
                 #edited_imgs = [T.ToPILImage()(latent) for latent in _g]
                 #breakpoint()
                 optimizer.zero_grad()
