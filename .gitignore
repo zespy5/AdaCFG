@@ -7,6 +7,6 @@ legacy
 .env
 wandb
 ckpts
-*train*
+train
 # image data
 image_data

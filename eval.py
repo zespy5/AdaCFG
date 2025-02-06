@@ -27,14 +27,15 @@ def eval(model,
     num_condition = len(conditions)
     data_root = Path(data_root)
     eval_datas = sorted([*data_root.glob('*')])
-    criterion = Loss(lambda_text=2.0,
+    criterion = Loss(lambda_text=1.0,
                      lambda_structure=1.0,
                      device=device,
                      data_root=data_root,
                      latents_save_root='eval_latents_forward',
-                     dino_threshold=0.2,
+                     dino_threshold=0.25,
                      num_condition=num_condition,
-                     generate_condition_prompt=True).to(device)
+                     generate_condition_prompt=True,
+                     pnp_injection_rate=0.9).to(device)
     
     seasons, weathers, times = conditions
     
@@ -57,7 +58,7 @@ def eval(model,
             #image to text
             image_dirs = [image_path]
             real_images = [Image.open(image_path).convert('RGB')]
-            ##original_prompts = [generate_prompt(real_images[0])]
+            original_prompts = [generate_prompt(real_images[0])]
             
             image_dirs = image_dirs*batch_size
             real_images = real_images*batch_size
@@ -97,18 +98,106 @@ def eval(model,
             pred_ginit = pred_ginit.to(device)
             pred_gportion = pred_gportion.to(device)
             
-            loss, gen_images, prompts_c = criterion(image_dirs=image_dirs,
+            loss, gen_images, prompts_c, _ccs, _dcs = criterion(image_dirs=image_dirs,
                                                     real_images=real_images,
                                                     prompts=style_prompts, 
                                                     g_init=pred_ginit,
                                                     g_portion= pred_gportion)
             t.set_postfix(loss=loss.item())
+            
             predicts = pred_ginit*pred_gportion.squeeze()
             preds = predicts.detach().cpu().numpy()
+            season_ccs = _ccs[0].detach().cpu().numpy()
+            weather_ccs = _ccs[1].detach().cpu().numpy()
+            time_ccs = _ccs[2].detach().cpu().numpy()
+            struc_dcs = _dcs.detach().cpu().numpy()
             edited_imgs = [T.ToPILImage()(latent) for latent in gen_images]
             for a in range(len(edited_imgs)):
                 length = len([*save_dir.glob('*')])
-                s = save_dir/f'{length:03}-{prompts_c[0][a]}-{int(preds.item(a,0))}-{style_prompts[1][a]}-{int(preds.item(a,1))}-{style_prompts[2][a]}-{int(preds.item(a,2))}.png'
+                str_s_ccs = f'{season_ccs.item(a):.2f}'.replace('.','_')
+                str_w_ccs = f'{weather_ccs.item(a):.2f}'.replace('.','_')
+                str_t_ccs = f'{time_ccs.item(a):.2f}'.replace('.','_')
+                str_dcs = f'{struc_dcs.item(a):.2f}'.replace('.','_')
+                s = save_dir/f'{length:03}-{prompts_c[0][a]}-{int(preds.item(a,0))}-{str_s_ccs}-{style_prompts[1][a]}-{int(preds.item(a,1))}-{str_w_ccs}-{style_prompts[2][a]}-{int(preds.item(a,2))}-{str_t_ccs}-{str_dcs}.png'
+                edited_imgs[a].save(s)
+
+            total_loss += loss.item()
+        epoch_loss = total_loss/(num_instance)
+        
+    return epoch_loss
+
+@torch.no_grad()
+def linear_eval(model,
+         data_root:str,
+         conditions,
+         save_image_path:str,
+         epoch,
+         device,
+         model_device,
+         num_condition=1):
+    data_root = Path(data_root)
+    eval_datas = sorted([*data_root.glob('*')])
+    criterion = Loss(lambda_text=1.0,
+                     lambda_structure=1.0,
+                     device=device,
+                     data_root=data_root,
+                     latents_save_root='eval_latents_forward',
+                     dino_threshold=0.25,
+                     num_condition=num_condition,
+                     generate_condition_prompt=True,
+                     pnp_injection_rate=0.5).to(device)
+    
+    
+    conditioned_prompt_embedds = criterion.prompt_embeds
+    original_image_embedds = criterion.image_clip_embeds
+    
+    save_root = Path(save_image_path)
+    save_root.mkdir(exist_ok=True, parents=True)
+    save_dir = save_root/f'epoch-{epoch}'
+    save_dir.mkdir(exist_ok=True)
+    
+    num_instance = len(eval_datas)
+    batch_size = 5
+    total_loss = 0
+    print('Evaluate')
+    with tqdm(eval_datas) as t:
+        for i, image_path in enumerate(t):
+            #image to text
+            image_dirs = [image_path]
+            real_images = [Image.open(image_path).convert('RGB')]
+            
+            image_dirs = image_dirs*batch_size
+            real_images = real_images*batch_size
+            
+            
+            domain_prompts = [conditions[randint(0,12)] for _ in range(batch_size)]
+            
+            domain_prompt_embed = conditioned_prompt_embedds(domain_prompts)
+            domain_prompts = [domain_prompts]
+            original_image_emb = original_image_embedds(real_images)
+
+            prompt_emb = torch.cat([original_image_emb,
+                                    domain_prompt_embed], dim=1)
+            prompt_emb = prompt_emb.to(model_device)
+            
+            pred_ginit = model(prompt_emb)
+            pred_ginit = pred_ginit.to(device)
+            
+            loss, gen_images, prompts_c, _ccs, _dcs = criterion(image_dirs=image_dirs,
+                                                    real_images=real_images,
+                                                    prompts=domain_prompts, 
+                                                    g_init=pred_ginit)
+            t.set_postfix(loss=loss.item())
+            
+            preds = pred_ginit.squeeze().detach().cpu().numpy()
+            ccs = _ccs[0].detach().cpu().numpy()
+            struc_dcs = _dcs.detach().cpu().numpy()
+            edited_imgs = [T.ToPILImage()(latent) for latent in gen_images]
+            for a in range(len(edited_imgs)):
+                length = len([*save_dir.glob('*')])
+                str_s_ccs = f'{ccs.item(a):.2f}'.replace('.','_')
+                str_dcs = f'{struc_dcs.item(a):.2f}'.replace('.','_')
+                s = save_dir/f'{length:03}-{prompts_c[0][a]}-{int(preds.item(a))}-{str_s_ccs}-{str_dcs}.png'
                 edited_imgs[a].save(s)
 
             total_loss += loss.item()

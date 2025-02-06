@@ -61,37 +61,4 @@ class FeedForward(nn.Module):
         output = self.layer_norm(hidden_states+residual)
         
         return output
-    
-class AttentionModel(nn.Module):
-    
-    def __init__(self,
-                 hidden_dim : int,
-                 heads : int,
-                 init_g : float
-                 ):
-        super().__init__()
-        self.hidden_dim = hidden_dim
-        self.heads = heads
-        self.init_g = init_g
-        
-        self.attn = Attention(self.hidden_dim, self.heads)
-        self.ff = FeedForward(self.hidden_dim)
-        
-        self.W = nn.Linear(self.hidden_dim, 1)
-
-        
-    def forward(self, hidden_states):
-
-        hidden_states = self.attn(hidden_states)
-        hidden_states = self.ff(hidden_states)
-
-        output = self.W(hidden_states)
-        g_init = output[:,0]
-        condition_portion = output[:,1:]
-        
-        g_init = torch.sigmoid(g_init/self.init_g)*self.init_g +1
-        condition_portion = torch.softmax(condition_portion,dim=1)
-        
-        return g_init, condition_portion
-        
-        
+ 

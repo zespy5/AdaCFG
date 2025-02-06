@@ -24,6 +24,7 @@ class Loss(nn.Module):
                  dino_threshold : float = 0.2,
                  num_condition : int = 3,
                  generate_condition_prompt: bool =False,
+                 pnp_injection_rate : float = 0.9
                  ):
         super().__init__()
         
@@ -36,10 +37,13 @@ class Loss(nn.Module):
         self.dino_threshold = dino_threshold
         self.num_condition = num_condition
         self.generate_condition_prompt = generate_condition_prompt
+        self.pnp_injection_rate = pnp_injection_rate
         
         self.data_root = Path(data_root)
         
-        self.pipeline = PnPPipeline(generate_condition_prompt=self.generate_condition_prompt,
+        self.pipeline = PnPPipeline(pnp_attn_t=self.pnp_injection_rate,
+                                    pnp_f_t=self.pnp_injection_rate,
+                                    generate_condition_prompt=self.generate_condition_prompt,
                                     device=self.device,
                                     tensor_out=True,
                                     train_mode=True)
@@ -115,10 +119,10 @@ class Loss(nn.Module):
         transform_gen_images = self.clip_transform()(gen_images)
         img_features = self.clip_model.get_image_features(transform_gen_images.to(self.device))
 
-        #loss = F.mse_loss(img_features, text_features)
-        loss = (1-F.cosine_similarity(text_features, img_features, dim=1))
+        clip_cs = F.cosine_similarity(text_features, img_features, dim=1)
+        loss = (1-clip_cs)
         loss = loss.view(-1).mean()
-        return loss
+        return loss, clip_cs
     
     def dino_loss(self, real_images, gen_images):
         batch = gen_images.shape[0]
@@ -132,28 +136,34 @@ class Loss(nn.Module):
         real_outputs = real_outputs.view(batch, -1)
         gen_outputs = gen_outputs.view(batch, -1)
         
-        #loss = F.mse_loss(real_outputs, gen_outputs)
-        loss = (1-F.cosine_similarity(real_outputs, gen_outputs, dim=1))
+        dino_cs = F.cosine_similarity(real_outputs, gen_outputs, dim=1)
+        loss = (1-dino_cs)
         loss = loss.view(-1).mean()
-        return loss
+        return loss, dino_cs
     
     def forward(self, 
                 image_dirs,
                 real_images, 
                 prompts,
                 g_init:torch.Tensor,
-                g_portion:torch.Tensor):
+                g_portion:Optional[torch.Tensor]= None):
 
         gen_images, prompt_c = self.generate_edited_image(image_dirs=image_dirs, 
                                                    prompts=prompts,
                                                    g_init=g_init,
                                                    g_portion=g_portion)
 
-        text_losses = [self.clip_loss(gen_images, p).unsqueeze(0) for p in prompts]
+        text_losses = []
+        clip_cses = []
+        
+        for p in prompts:
+            clip_loss, clip_cs = self.clip_loss(gen_images, p)
+            text_losses.append(clip_loss.unsqueeze(0))
+            clip_cses.append(clip_cs.squeeze())
 
         text_loss = torch.cat(text_losses).sum()
 
-        structure_loss = self.dino_loss(real_images, gen_images)
+        structure_loss, dino_cs = self.dino_loss(real_images, gen_images)
 
         threshold = torch.ones_like(structure_loss)*self.dino_threshold
         thresholded_structure_loss = self.lambda_structure*torch.max(threshold,structure_loss)
@@ -161,6 +171,6 @@ class Loss(nn.Module):
         loss = self.lambda_text*text_loss + thresholded_structure_loss
 
         
-        return loss, gen_images, prompt_c
+        return loss, gen_images, prompt_c, clip_cses, dino_cs.squeeze()
             
             

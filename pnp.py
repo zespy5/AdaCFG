@@ -73,8 +73,7 @@ class PnPPipeline(nn.Module):
         
         if self.generate_condition_prompt:
             self.image_processor = BlipProcessor.from_pretrained("Salesforce/blip-image-captioning-large") 
-            self.i2t_model = BlipForConditionalGeneration.from_pretrained("Salesforce/blip-image-captioning-large", 
-                                                                        torch_dtype=torch.float16).to(self.device)
+            self.i2t_model = BlipForConditionalGeneration.from_pretrained("Salesforce/blip-image-captioning-large").to(self.device)
             
         self.init_pnp(self.pnp_f_t, self.pnp_attn_t)
         
@@ -296,9 +295,13 @@ class PnPPipeline(nn.Module):
             alpha = alpha[self.scheduler.timesteps]
             _guidance = 20*alpha.unsqueeze(0).repeat(batch_size,1).flip(1)
             self.guidance_scales  = _guidance
-            self.guidance_portion = (torch.ones((batch_size,self.num_condition))/self.num_condition).to(self.device)
         else:
             self.guidance_scales = guidance_scales
+            
+            
+        if guidance_portion is None:
+            self.guidance_portion = (torch.ones((batch_size,self.num_condition))/self.num_condition).to(self.device)
+        else:
             self.guidance_portion = guidance_portion
         
         # denoising
