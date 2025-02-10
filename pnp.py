@@ -149,21 +149,12 @@ class PnPPipeline(nn.Module):
         # apply the denoising network
         with torch.no_grad():
             noise_pred = self.unet(latent_model_input, t, encoder_hidden_states=text_embed_input)['sample']
-        '''# noise_pred [batch*(num_condition+2), 4, 64, 64]
-        _num_condition = self.num_condition+2
-        noise_pred_uncond = noise_pred[batch_size:2*batch_size]
-        noise_pred_cond = noise_pred[2*batch_size:]
-        #breakpoint()
-        likelihood = noise_pred_cond - noise_pred_uncond.unsqueeze(1)
-        #breakpoint()
-        adaptive_likelihood = torch.sum(likelihood,dim=1)
-        #breakpoint()
-        noise_pred = noise_pred_uncond+adaptive_likelihood'''
         
 
         # perform guidance
         _num_condition = self.num_condition+2
         noise_pred = noise_pred.chunk(_num_condition)
+        origin_noise = noise_pred[0]
         #breakpoint()
         noise_pred_uncond = noise_pred[1]
         #breakpoint()
@@ -184,6 +175,7 @@ class PnPPipeline(nn.Module):
         #breakpoint()
         noise_pred = noise_pred_uncond + adaptive_likelihood
         #noise_pred[batch_size,4,64,64]
+        noise_pred = self.origin_alpha*origin_noise + (1-self.origin_alpha)*noise_pred
 
         
         # compute the denoising step with the reference model
@@ -205,7 +197,7 @@ class PnPPipeline(nn.Module):
         
         latents_t_path = latents_path/f'noisy_latents_{t}.pt'
         assert latents_t_path.exists(), f'Missing latents at t {t} path {latents_path.stem}'
-        latents = torch.load(latents_t_path, weights_only=False)
+        latents = torch.load(latents_t_path, weights_only=False, map_location=self.device)
         return latents
     
     
@@ -214,7 +206,7 @@ class PnPPipeline(nn.Module):
         init_timestep = self.scheduler.timesteps[0]
         
         latents_paths = [latent/f'noisy_latents_{init_timestep}.pt' for latent in self.source_latents_save_dirs]
-        noisy_latents = [torch.load(path, weights_only=False) for path in latents_paths]
+        noisy_latents = [torch.load(path, weights_only=False, map_location=self.device) for path in latents_paths]
         noisy_latents = torch.cat(noisy_latents).to(self.device, dtype=torch.float32)
         return noisy_latents
     
@@ -223,7 +215,8 @@ class PnPPipeline(nn.Module):
                  num_condition : int = 1,
                  image_dirs : Union[Path, List[Path]] = None,
                  prompts : Optional[Union[str, List[str]]] = None,
-
+                 
+                 origin_alpha : Optional[torch.Tensor] = None,
                  guidance_scales : Optional[torch.Tensor] = None,
                  guidance_portion : Optional[torch.Tensor] = None,
                  negative_prompt: Optional[str] = None,
@@ -288,6 +281,9 @@ class PnPPipeline(nn.Module):
         self.pnp_guidance_embeds = pnp_guidance_embeds.repeat(batch_size,1,1)
         self.negative_text_embeds = negative_text_embeds.repeat(batch_size,1,1)
 
+        # define origin alpha
+        self.origin_alpha = 0 if origin_alpha is None else origin_alpha
+        
         
         # define guidance scales
         if guidance_scales is None:

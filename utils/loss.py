@@ -146,8 +146,9 @@ class Loss(nn.Module):
                 real_images, 
                 prompts,
                 g_init:torch.Tensor,
-                g_portion:Optional[torch.Tensor]= None):
-
+                g_portion:Optional[torch.Tensor]= None,
+                latents_save_root : str = 'latents_forward',):
+        self.latents_save_root = latents_save_root
         gen_images, prompt_c = self.generate_edited_image(image_dirs=image_dirs, 
                                                    prompts=prompts,
                                                    g_init=g_init,
@@ -165,10 +166,11 @@ class Loss(nn.Module):
 
         structure_loss, dino_cs = self.dino_loss(real_images, gen_images)
 
-        threshold = torch.ones_like(structure_loss)*self.dino_threshold
-        thresholded_structure_loss = self.lambda_structure*torch.max(threshold,structure_loss)
+        #threshold = torch.ones_like(structure_loss)*self.dino_threshold
+        #thresholded_structure_loss = self.lambda_structure*torch.max(threshold,structure_loss)
+        thresholded_structure_loss = (structure_loss - self.dino_threshold)**2
 
-        loss = self.lambda_text*text_loss + thresholded_structure_loss
+        loss = self.lambda_text*text_loss + self.lambda_structure*thresholded_structure_loss
 
         
         return loss, gen_images, prompt_c, clip_cses, dino_cs.squeeze()

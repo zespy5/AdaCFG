@@ -8,6 +8,7 @@ class GuidanceModel(nn.Module):
     def __init__(
         self,
         init_g : Optional[float] = None,
+        divide_out : float = 0.1,
         num_guidance_info : int = 1,
         linear_in_size: Optional[int] = None,
         num_mlp_layers: int = 2,
@@ -24,9 +25,10 @@ class GuidanceModel(nn.Module):
         self.in_size = linear_in_size
         self.hidden_act = hidden_act
         self.num_mlp_layers = num_mlp_layers
+    
         
         self.init_G = 50.0 if init_g is None else init_g
-
+        self.divide_out = divide_out
 
 
         self.MLP_modules = []
@@ -46,7 +48,7 @@ class GuidanceModel(nn.Module):
     def forward(self, x):
 
         out = self.MLP(x)
-        out = self.out(out)
+        out = self.out(out)*self.divide_out
         out = torch.sigmoid(out/self.init_G)*self.init_G+1
 
         return out

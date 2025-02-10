@@ -19,10 +19,10 @@ from random import randint
 
 
 
-def train(data_root, train_device, eval_device):
+def train(data_root, train_device):
     timestamp = get_timestamp()
     
-    name = f"work-{timestamp}-tranformer struc+condition 3, lambda_t 1, lambda_s 1, dino thres 0.25, init 100, lr 0.0001"
+    name = f"work-{timestamp}-tranformer struc+condition 3, lambda_t 1, lambda_s 1, dino squre loss thres 0.3, init 200, lr 0.0001"
         ############ WANDB INIT #############
     print("--------------- Wandb SETTING ---------------")
     dotenv.load_dotenv()
@@ -64,22 +64,16 @@ def train(data_root, train_device, eval_device):
     
     dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
 
-    '''model = GuidanceModel(init_g= 40.0,
-                          num_guidance_info=3,
-                          linear_in_size=3072,
-                          num_mlp_layers=4,
-                          hidden_act='gelu',
-                          device=train_device).to(train_device)'''
                           
     model = AttentionModel(hidden_dim=768,
                            heads=4,
-                           init_g=100.0).to(train_device)
+                           init_g=200.0).to(train_device)
     
     criterion = Loss(lambda_text=1.0,
                      lambda_structure=1.0,
                      device=train_device,
                      data_root=data_root,
-                     dino_threshold=0.25,
+                     dino_threshold=0.3,
                      num_condition=3,
                      generate_condition_prompt=True,
                      pnp_injection_rate=0.9).to(train_device)
@@ -93,7 +87,6 @@ def train(data_root, train_device, eval_device):
                                                             lr_lambda=lambda epoch: 0.99*epoch)
     min_val_loss = 1000
     
-    
     for epoch in range(50):
         print(f"epoch : {epoch}")
         #dataset.update_condition_set()
@@ -104,12 +97,8 @@ def train(data_root, train_device, eval_device):
                 idxs= image_idx.numpy()
                 image_dirs = [data_root/f'{idx:03}.png' for idx in idxs]
                 real_images = [Image.open(img).convert('RGB') for img in image_dirs]
-                original_prompts = [generate_prompt(img) for img in real_images]
+                original_prompts = [generate_prompt(img).replace(' at night','') for img in real_images]
                 
-                #select random condition
-                ##condition_idxs = torch.randint(num_conditions,(len(idxs),))
-                ##np_condition_idxs = condition_idxs.numpy()
-                ##style_prompts = [conditions[np_condition_idxs[i]] for i in range(len(idxs))]
                 data_len = len(image_dirs)
                 season_prompts = [seasons[randint(0,4)] for _ in range(data_len)]
                 weather_prompts = [weathers[randint(0,5)] for _ in range(data_len)]
@@ -185,12 +174,12 @@ def train(data_root, train_device, eval_device):
         optimizer_scheduler.step()
         if epoch%2==0:
             valid_epoch_loss = eval(model= model,
-                        data_root='image_data/eval',
-                        conditions=conditions,
-                        save_image_path=f'Evalutate_images_results/{timestamp}',
-                        epoch=epoch,
-                        device=eval_device,
-                        model_device=train_device)
+                                    criterion=criterion,
+                                    data_root='image_data/eval',
+                                    conditions=conditions,
+                                    save_image_path=f'Evalutate_images_results/{timestamp}',
+                                    epoch=epoch,
+                                    device=train_device)
             wandb.log(
                     {   "epoch":epoch+1,
                         "valid loss": valid_epoch_loss,
@@ -204,6 +193,6 @@ def train(data_root, train_device, eval_device):
 
 
 if __name__ == '__main__':
-    train(Path('image_data/train'),'cuda:0', 'cuda:1')
+    train(Path('image_data/train'),'cuda')
             
             

@@ -18,24 +18,16 @@ from utils.utils import generate_prompt
 from random import randint
 @torch.no_grad()
 def eval(model,
+         criterion,
          data_root:str,
          conditions,
          save_image_path:str,
          epoch,
          device,
-         model_device):
+         latents_save_root='eval_latents_forward'):
     num_condition = len(conditions)
     data_root = Path(data_root)
     eval_datas = sorted([*data_root.glob('*')])
-    criterion = Loss(lambda_text=1.0,
-                     lambda_structure=1.0,
-                     device=device,
-                     data_root=data_root,
-                     latents_save_root='eval_latents_forward',
-                     dino_threshold=0.25,
-                     num_condition=num_condition,
-                     generate_condition_prompt=True,
-                     pnp_injection_rate=0.9).to(device)
     
     seasons, weathers, times = conditions
     
@@ -92,7 +84,7 @@ def eval(model,
                                     season_prompt_embed,
                                     weather_prompt_embed,
                                     time_prompt_embed], dim=1)
-            prompt_emb = prompt_emb.to(model_device)
+            prompt_emb = prompt_emb.to(device)
             
             pred_ginit, pred_gportion = model(prompt_emb)
             pred_ginit = pred_ginit.to(device)
@@ -102,7 +94,8 @@ def eval(model,
                                                     real_images=real_images,
                                                     prompts=style_prompts, 
                                                     g_init=pred_ginit,
-                                                    g_portion= pred_gportion)
+                                                    g_portion= pred_gportion,
+                                                    latents_save_root= latents_save_root)
             t.set_postfix(loss=loss.item())
             
             predicts = pred_ginit*pred_gportion.squeeze()
@@ -128,25 +121,15 @@ def eval(model,
 
 @torch.no_grad()
 def linear_eval(model,
-         data_root:str,
-         conditions,
-         save_image_path:str,
-         epoch,
-         device,
-         model_device,
-         num_condition=1):
+                criterion,
+                data_root:str,
+                conditions,
+                save_image_path:str,
+                epoch,
+                device,
+                latents_save_root='eval_latents_forward'):
     data_root = Path(data_root)
     eval_datas = sorted([*data_root.glob('*')])
-    criterion = Loss(lambda_text=1.0,
-                     lambda_structure=1.0,
-                     device=device,
-                     data_root=data_root,
-                     latents_save_root='eval_latents_forward',
-                     dino_threshold=0.25,
-                     num_condition=num_condition,
-                     generate_condition_prompt=True,
-                     pnp_injection_rate=0.5).to(device)
-    
     
     conditioned_prompt_embedds = criterion.prompt_embeds
     original_image_embedds = criterion.image_clip_embeds
@@ -178,7 +161,7 @@ def linear_eval(model,
 
             prompt_emb = torch.cat([original_image_emb,
                                     domain_prompt_embed], dim=1)
-            prompt_emb = prompt_emb.to(model_device)
+            prompt_emb = prompt_emb.to(device)
             
             pred_ginit = model(prompt_emb)
             pred_ginit = pred_ginit.to(device)
@@ -186,7 +169,8 @@ def linear_eval(model,
             loss, gen_images, prompts_c, _ccs, _dcs = criterion(image_dirs=image_dirs,
                                                     real_images=real_images,
                                                     prompts=domain_prompts, 
-                                                    g_init=pred_ginit)
+                                                    g_init=pred_ginit,
+                                                    latents_save_root= latents_save_root)
             t.set_postfix(loss=loss.item())
             
             preds = pred_ginit.squeeze().detach().cpu().numpy()

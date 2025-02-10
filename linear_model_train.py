@@ -19,10 +19,10 @@ from random import randint
 
 
 
-def train(data_root, train_device, eval_device):
+def train(data_root, train_device):
     timestamp = get_timestamp()
     
-    name = f"work-{timestamp}-linear pnp 0.5 lambda_t 2.5, lambda_s 1, dino thres 0.25, init 100, lr 0.00005"
+    name = f"work-{timestamp}-linear pnp 0.7 lambda_t 3, lambda_s 1, dino thres 0.4, init 200, 0.2 lr 0.0001"
         ############ WANDB INIT #############
     print("--------------- Wandb SETTING ---------------")
     dotenv.load_dotenv()
@@ -58,7 +58,8 @@ def train(data_root, train_device, eval_device):
     
     dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
 
-    model = GuidanceModel(init_g= 100.0,
+    model = GuidanceModel(init_g= 200.0,
+                          divide_out=0.2,
                           num_guidance_info=1,
                           linear_in_size=1536,
                           num_mlp_layers=3,
@@ -66,18 +67,18 @@ def train(data_root, train_device, eval_device):
                           device=train_device).to(train_device)
 
     
-    criterion = Loss(lambda_text=2.5,
+    criterion = Loss(lambda_text=3.0,
                      lambda_structure=1.0,
                      device=train_device,
                      data_root=data_root,
-                     dino_threshold=0.25,
+                     dino_threshold=0.4,
                      num_condition=1,
                      generate_condition_prompt=True,
-                     pnp_injection_rate=0.5).to(train_device)
+                     pnp_injection_rate=0.7).to(train_device)
     
     conditioned_prompt_embedds = criterion.prompt_embeds
     original_image_embedds = criterion.image_clip_embeds
-    lr = 0.00005
+    lr = 0.0001
 
     optimizer = torch.optim.Adam(model.parameters(), lr)
     optimizer_scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer=optimizer,
@@ -143,15 +144,15 @@ def train(data_root, train_device, eval_device):
             )
         
         optimizer_scheduler.step()
-        if epoch%2==0:
+        if epoch%2==0 and epoch!=0:
             valid_epoch_loss = linear_eval(model= model,
-                        data_root='image_data/eval',
-                        conditions=domains,
-                        save_image_path=f'Evalutate_images_results/{timestamp}',
-                        epoch=epoch,
-                        device=eval_device,
-                        model_device=train_device,
-                        num_condition=1)
+                                           criterion=criterion,
+                                           data_root='image_data/eval',
+                                           conditions=domains,
+                                           save_image_path=f'Evalutate_images_results/{timestamp}',
+                                           epoch=epoch,
+                                           device=train_device,
+                                           )
             wandb.log(
                     {   "epoch":epoch+1,
                         "valid loss": valid_epoch_loss,
@@ -165,6 +166,6 @@ def train(data_root, train_device, eval_device):
 
 
 if __name__ == '__main__':
-    train(Path('image_data/train'),'cuda:0', 'cuda:1')
+    train(Path('image_data/train'),'cuda')
             
             
