@@ -19,14 +19,13 @@ logging.set_verbosity_error()
 class PnPPipeline(nn.Module):
     def __init__(self,
                  n_timestep : int =50,
-                 pnp_attn_t : float = 0.9,
-                 pnp_f_t : float = 0.9,
                  sd_version : str ='2.1',
-                 seed : int = 1,
                  latents_steps : int=1000,
                  device : str = 'cuda',
-                 generate_condition_prompt : bool = False,
+                 pnp_attn_t : float = 0.9,
+                 pnp_f_t : float = 0.9,
                  init_text :str = "a photography of",
+                 generate_condition_prompt : bool = False,
                  tensor_out : bool = False,
                  train_mode : bool = False,
                  ):
@@ -36,7 +35,6 @@ class PnPPipeline(nn.Module):
         self.generate_condition_prompt = generate_condition_prompt #if only input the condition
         self.init_text = init_text
         self.latents_steps = latents_steps
-        self.seed = seed
         self.n_timestep=n_timestep
         self.pnp_attn_t = int(n_timestep*pnp_attn_t)
         self.pnp_f_t = int(n_timestep*pnp_f_t)

@@ -17,14 +17,16 @@ class Loss(nn.Module):
                  negative_prompt : str = 'ugly, blurry, low res, unrealistic, paint',
                  lambda_text : float = 0.5,
                  lambda_structure: float = 2.5,
-                 device :str = 'cuda',
-                 data_root : str='image_data/train',
                  save_image_path : Optional[str]= None,
                  latents_save_root : str = 'latents_forward',
                  dino_threshold : float = 0.2,
                  num_condition : int = 3,
                  generate_condition_prompt: bool =False,
-                 pnp_injection_rate : float = 0.9
+                 pnp_injection_rate : float = 0.9,
+                 blip_init_text: str = "a photography of",
+                 data_root : str='image_data/train',
+                 device :str = 'cuda',
+                 **kwargs
                  ):
         super().__init__()
         
@@ -38,13 +40,14 @@ class Loss(nn.Module):
         self.num_condition = num_condition
         self.generate_condition_prompt = generate_condition_prompt
         self.pnp_injection_rate = pnp_injection_rate
-        
+        self.blip_init_text = blip_init_text
         self.data_root = Path(data_root)
         
-        self.pipeline = PnPPipeline(pnp_attn_t=self.pnp_injection_rate,
+        self.pipeline = PnPPipeline(device=self.device,
+                                    pnp_attn_t=self.pnp_injection_rate,
                                     pnp_f_t=self.pnp_injection_rate,
+                                    init_text=self.blip_init_text,
                                     generate_condition_prompt=self.generate_condition_prompt,
-                                    device=self.device,
                                     tensor_out=True,
                                     train_mode=True)
         self.guidance_scheduler = GuidanceScheduler(device=self.device)
@@ -79,13 +82,14 @@ class Loss(nn.Module):
             
         return image_features
         
-    def generate_edited_image(self, image_dirs, prompts, g_init, g_portion):
+    def generate_edited_image(self, image_dirs, prompts, g_init, g_portion, origin_alpha):
 
         scheduled_guidance = self.guidance_scheduler.get_guidance_scales(g_init)
 
         outputs = self.pipeline(num_condition=self.num_condition,
                                 image_dirs=image_dirs,
                                 prompts = prompts,
+                                origin_alpha=origin_alpha,
                                 guidance_scales=scheduled_guidance,
                                 guidance_portion=g_portion,
                                 negative_prompt=self.negative_prompt,
@@ -145,19 +149,21 @@ class Loss(nn.Module):
                 image_dirs,
                 real_images, 
                 prompts,
-                g_init:torch.Tensor,
+                origin_alpha:Optional[Union[torch.Tensor,float]]=None,
+                g_init:Optional[torch.Tensor]=None,
                 g_portion:Optional[torch.Tensor]= None,
                 latents_save_root : str = 'latents_forward',):
         self.latents_save_root = latents_save_root
         gen_images, prompt_c = self.generate_edited_image(image_dirs=image_dirs, 
                                                    prompts=prompts,
                                                    g_init=g_init,
-                                                   g_portion=g_portion)
+                                                   g_portion=g_portion,
+                                                   origin_alpha= origin_alpha,)
 
         text_losses = []
         clip_cses = []
         
-        for p in prompts:
+        for p in prompt_c:
             clip_loss, clip_cs = self.clip_loss(gen_images, p)
             text_losses.append(clip_loss.unsqueeze(0))
             clip_cses.append(clip_cs.squeeze())
@@ -168,7 +174,7 @@ class Loss(nn.Module):
 
         #threshold = torch.ones_like(structure_loss)*self.dino_threshold
         #thresholded_structure_loss = self.lambda_structure*torch.max(threshold,structure_loss)
-        thresholded_structure_loss = (structure_loss - self.dino_threshold)**2
+        thresholded_structure_loss = torch.sqrt((structure_loss - self.dino_threshold)**2)
 
         loss = self.lambda_text*text_loss + self.lambda_structure*thresholded_structure_loss
 

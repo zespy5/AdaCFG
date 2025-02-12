@@ -22,7 +22,7 @@ from random import randint
 def train(data_root, train_device):
     timestamp = get_timestamp()
     
-    name = f"work-{timestamp}-tranformer struc+condition 3, lambda_t 1, lambda_s 1, dino squre loss thres 0.3, init 200, lr 0.0001"
+    name = f"work-{timestamp}-tranformer struc+condition 3,pnp0.9 lambda_t 1, lambda_s 1, dino squre loss thres 0.3, init 200, lr 0.0001"
         ############ WANDB INIT #############
     print("--------------- Wandb SETTING ---------------")
     dotenv.load_dotenv()
@@ -73,7 +73,7 @@ def train(data_root, train_device):
                      lambda_structure=1.0,
                      device=train_device,
                      data_root=data_root,
-                     dino_threshold=0.3,
+                     dino_threshold=0.4,
                      num_condition=3,
                      generate_condition_prompt=True,
                      pnp_injection_rate=0.9).to(train_device)

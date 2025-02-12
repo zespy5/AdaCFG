@@ -1,0 +1,39 @@
+seed : 1
+device : "cuda:0"
+
+#dataset
+train_data_root : './image_data/train' #loss:data_root
+eval_data_root : './imagee_data/eval'
+batch_size : 5
+learning_rate : 0.00005
+origin_alpha : 0.6
+
+model:
+    init_g : 200.0
+    divide_out : 0.5
+    num_guidance_info : 1
+    linear_in_size : 1536
+    num_mlp_layers : 3
+    hidden_act : "gelu"
+
+loss:
+    negative_prompt: 'ugly, blurry, low res, unrealistic, paint'
+    lambda_text : 2.0
+    lambda_structure : 1.0
+    train_save_image_path : None
+    latents_save_root : 'latents_forward'
+    dino_threshold : 0.3
+    num_condition : 1
+    generate_condition_prompt : False
+    pnp_injection_rate : 0.9
+    blip_init_text : "a photography of"
+    ##data_root = train_data_root
+    ##device = device
+
+
+
+
+
+
+
+

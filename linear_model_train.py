@@ -19,10 +19,32 @@ from random import randint
 
 
 
-def train(data_root, train_device):
+def train(config_path):
+    config = get_config(config_path)
+    
+    seed = config['seed']
+    device = config['device']
+    batch_size = config['batch_size']
+    train_data_root = Path(config['train_data_root'])
+    eval_data_root = config['eval_data_root']
+    origin_alpha = config['origin_alpha']
+    lr = config['learning_rate']
+    
+    model_config = config['model']
+    init_g = model_config['init_g']
+    divide_out = model_config['divide_out']
+    
+    loss_config = config['loss']
+    pnp_rate = loss_config['pnp_injection_rate']
+    lambda_t = loss_config['lambda_text']
+    lambda_s = loss_config['lambda_structure']
+    dino_thres = loss_config['dino_threshold']
+    
     timestamp = get_timestamp()
     
-    name = f"work-{timestamp}-linear pnp 0.7 lambda_t 3, lambda_s 1, dino thres 0.4, init 200, 0.2 lr 0.0001"
+    name = f"work-{timestamp}-linear blip pnp {pnp_rate} alpha {origin_alpha}\
+            lambda_t {lambda_t}, lambda_s {lambda_s}, dino thres {dino_thres},\
+            init {init_g}, div {divide_out} lr {lr}"
         ############ WANDB INIT #############
     print("--------------- Wandb SETTING ---------------")
     dotenv.load_dotenv()
@@ -35,7 +57,7 @@ def train(data_root, train_device):
         mode=os.environ.get("WANDB_MODE"),
     )
     
-    seed_everything(54)
+    seed_everything(seed)
     
     domains = [' on a summer day',
                ' on a spring day',
@@ -52,33 +74,30 @@ def train(data_root, train_device):
                ' at daytime']
     
     
-    batch_size = 5
-    
-    dataset = DomainChangeDataset(data_directory=data_root)
-    
+    dataset = DomainChangeDataset(data_directory=train_data_root)
     dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
-
-    model = GuidanceModel(init_g= 200.0,
-                          divide_out=0.2,
+    
+    
+    model = GuidanceModel(**model_config).to(device)
+    '''model = GuidanceModel(init_g= 200.0,
+                          divide_out=0.5,
                           num_guidance_info=1,
                           linear_in_size=1536,
                           num_mlp_layers=3,
-                          hidden_act='gelu',
-                          device=train_device).to(train_device)
+                          hidden_act='gelu').to(train_device)'''
 
-    
-    criterion = Loss(lambda_text=3.0,
+    criterion = Loss(**loss_config).to(device)
+    '''criterion = Loss(lambda_text=2.0,
                      lambda_structure=1.0,
                      device=train_device,
                      data_root=data_root,
-                     dino_threshold=0.4,
+                     dino_threshold=0.25,
                      num_condition=1,
                      generate_condition_prompt=True,
-                     pnp_injection_rate=0.7).to(train_device)
+                     pnp_injection_rate=0.9).to(train_device)'''
     
     conditioned_prompt_embedds = criterion.prompt_embeds
     original_image_embedds = criterion.image_clip_embeds
-    lr = 0.0001
 
     optimizer = torch.optim.Adam(model.parameters(), lr)
     optimizer_scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer=optimizer,
@@ -93,7 +112,7 @@ def train(data_root, train_device):
             for k, image_idx in enumerate(t):
                 #image to text
                 idxs= image_idx.numpy()
-                image_dirs = [data_root/f'{idx:03}.png' for idx in idxs]
+                image_dirs = [train_data_root/f'{idx:04}.jpg' for idx in idxs]
                 real_images = [Image.open(img).convert('RGB') for img in image_dirs]
                 
                 data_len = len(image_dirs)
@@ -108,14 +127,16 @@ def train(data_root, train_device):
                 prompt_emb = torch.cat([original_image_emb,
                                         domain_prompt_embed], dim=1)
 
-                prompt_emb.to(train_device)
+                prompt_emb.to(device)
 
                 pred_ginit = model(prompt_emb)
 
                 loss, _g, _p, _ccs, _dcs = criterion(image_dirs=image_dirs,
                                                      real_images=real_images,
                                                      prompts=domain_prompts, 
-                                                     g_init=pred_ginit)
+                                                     g_init=pred_ginit,
+                                                     origin_alpha=origin_alpha,
+                                                     g_portion=None)
                 t.set_postfix(loss=loss.item())
 
 
@@ -147,11 +168,11 @@ def train(data_root, train_device):
         if epoch%2==0 and epoch!=0:
             valid_epoch_loss = linear_eval(model= model,
                                            criterion=criterion,
-                                           data_root='image_data/eval',
+                                           data_root=eval_data_root,
                                            conditions=domains,
                                            save_image_path=f'Evalutate_images_results/{timestamp}',
                                            epoch=epoch,
-                                           device=train_device,
+                                           device=device,
                                            )
             wandb.log(
                     {   "epoch":epoch+1,
@@ -166,6 +187,6 @@ def train(data_root, train_device):
 
 
 if __name__ == '__main__':
-    train(Path('image_data/train'),'cuda')
+    train('configs/linear_config.yaml')
             
             

@@ -13,15 +13,14 @@ class GuidanceModel(nn.Module):
         linear_in_size: Optional[int] = None,
         num_mlp_layers: int = 2,
         hidden_act: Literal["gelu", "mish", "selu"] = "gelu",
-        device: str = "cuda",
         **kwargs
     ):
         super().__init__()
         activates = {"gelu": nn.GELU(), "mish": nn.Mish(), "silu": nn.SiLU()}
         
-        self.device = device
         
         self.num_guidance_info = num_guidance_info
+        assert self.num_guidance_info==1 or self.num_guidance_info==2, 'The number of guidance info must be 1 or 2'
         self.in_size = linear_in_size
         self.hidden_act = hidden_act
         self.num_mlp_layers = num_mlp_layers
@@ -29,7 +28,6 @@ class GuidanceModel(nn.Module):
         
         self.init_G = 50.0 if init_g is None else init_g
         self.divide_out = divide_out
-
 
         self.MLP_modules = []
         self.activate = activates[hidden_act]
@@ -48,11 +46,23 @@ class GuidanceModel(nn.Module):
     def forward(self, x):
 
         out = self.MLP(x)
-        out = self.out(out)*self.divide_out
-        out = torch.sigmoid(out/self.init_G)*self.init_G+1
+        out = self.out(out)
 
-        return out
-    
+        if self.num_guidance_info==1:
+            out *=self.divide_out
+            out = torch.sigmoid(out/self.init_G)*self.init_G+1
+            return out
+        
+        elif self.num_guidance_info==2:
+            g_init = out[:,0]*self.divide_out
+            alpha = out[:,1]
+            
+            g_init = torch.sigmoid(g_init/self.init_G)*self.init_G+1
+            alpha = torch.sigmoid(alpha)
+
+            return g_init, alpha
+            
+  
     
 class AttentionModel(nn.Module):
     
