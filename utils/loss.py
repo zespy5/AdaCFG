@@ -21,8 +21,9 @@ class Loss(nn.Module):
                  latents_save_root : str = 'latents_forward',
                  dino_threshold : float = 0.2,
                  num_condition : int = 3,
-                 generate_condition_prompt: bool =False,
                  pnp_injection_rate : float = 0.9,
+                 guidance_schedule_use :bool = True,
+                 blip_use: bool =False,
                  blip_init_text: str = "a photography of",
                  data_root : str='image_data/train',
                  device :str = 'cuda',
@@ -38,18 +39,20 @@ class Loss(nn.Module):
         self.latents_save_root = latents_save_root
         self.dino_threshold = dino_threshold
         self.num_condition = num_condition
-        self.generate_condition_prompt = generate_condition_prompt
+        self.blip_use = blip_use
         self.pnp_injection_rate = pnp_injection_rate
         self.blip_init_text = blip_init_text
+        self.guidance_schedule_use = guidance_schedule_use
+        
         self.data_root = Path(data_root)
         
         self.pipeline = PnPPipeline(device=self.device,
                                     pnp_attn_t=self.pnp_injection_rate,
                                     pnp_f_t=self.pnp_injection_rate,
-                                    init_text=self.blip_init_text,
-                                    generate_condition_prompt=self.generate_condition_prompt,
-                                    tensor_out=True,
-                                    train_mode=True)
+                                    blip_use=self.blip_use,
+                                    blip_init_text=self.blip_init_text,
+                                    tensor_out=True)
+        
         self.guidance_scheduler = GuidanceScheduler(device=self.device)
         
         self.clip_model = CLIPModel.from_pretrained("openai/clip-vit-large-patch14").to(self.device)
@@ -83,17 +86,29 @@ class Loss(nn.Module):
         return image_features
         
     def generate_edited_image(self, image_dirs, prompts, g_init, g_portion, origin_alpha):
-
-        scheduled_guidance = self.guidance_scheduler.get_guidance_scales(g_init)
-
+        
+        if self.blip_use:
+            blip_conditions = prompts
+            prompts = None
+        else:
+            blip_conditions = None
+        
+        if self.guidance_schedule_use:
+            scheduled_guidance = self.guidance_scheduler.get_guidance_scales(g_init)
+        else:
+            scheduled_guidance = g_init.view(-1,1).repeat(1,self.pipeline.n_timestep)
+        
         outputs = self.pipeline(num_condition=self.num_condition,
                                 image_dirs=image_dirs,
                                 prompts = prompts,
+                                blip_conditions=blip_conditions,
                                 origin_alpha=origin_alpha,
                                 guidance_scales=scheduled_guidance,
                                 guidance_portion=g_portion,
                                 negative_prompt=self.negative_prompt,
-                                latents_save_root=self.latents_save_root)
+                                latents_save_root=self.latents_save_root
+                                )
+        
         gen_images = outputs.images
         edited_prompt = outputs.prompts
         
@@ -153,12 +168,14 @@ class Loss(nn.Module):
                 g_init:Optional[torch.Tensor]=None,
                 g_portion:Optional[torch.Tensor]= None,
                 latents_save_root : str = 'latents_forward',):
+        
         self.latents_save_root = latents_save_root
         gen_images, prompt_c = self.generate_edited_image(image_dirs=image_dirs, 
                                                    prompts=prompts,
+                                                   origin_alpha= origin_alpha,
                                                    g_init=g_init,
                                                    g_portion=g_portion,
-                                                   origin_alpha= origin_alpha,)
+                                                   )
 
         text_losses = []
         clip_cses = []
@@ -172,12 +189,12 @@ class Loss(nn.Module):
 
         structure_loss, dino_cs = self.dino_loss(real_images, gen_images)
 
-        #threshold = torch.ones_like(structure_loss)*self.dino_threshold
-        #thresholded_structure_loss = self.lambda_structure*torch.max(threshold,structure_loss)
-        thresholded_structure_loss = torch.sqrt((structure_loss - self.dino_threshold)**2)
+        threshold = torch.ones_like(structure_loss)*self.dino_threshold
+        thresholded_structure_loss = torch.max(threshold,structure_loss)
+        #thresholded_structure_loss = torch.sqrt((structure_loss - self.dino_threshold)**2)
 
         loss = self.lambda_text*text_loss + self.lambda_structure*thresholded_structure_loss
-
+        # todo  : 0.5*g_portion**2
         
         return loss, gen_images, prompt_c, clip_cses, dino_cs.squeeze()
             

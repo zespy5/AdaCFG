@@ -10,6 +10,7 @@ from tqdm import tqdm
 class DomainChangeDataset(Dataset):
     def __init__(self,
                  data_directory : Union[str, Path],
+                 data_length : int
                  #conditions : Optional[Union[str, List[str]]] = None,
                  #device : str = "cuda",
                  #init_text :str = "a photography of"
@@ -29,7 +30,7 @@ class DomainChangeDataset(Dataset):
         self.i2t_model = BlipForConditionalGeneration.from_pretrained("Salesforce/blip-image-captioning-large", 
                                                                       torch_dtype=torch.float16).to(self.device)
 '''
-        self.image_names = sorted([*self.data_directory.glob('*')])
+        self.image_names = sorted([*self.data_directory.glob('*')])[:data_length]
         assert len(self.image_names)!=0, "There is no image files"
 
         #self.real_image_set = [Image.open(img).convert('RGB') for img in tqdm(self.image_names)]

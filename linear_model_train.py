@@ -6,7 +6,7 @@ import numpy as np
 from data.Dataset import DomainChangeDataset
 from utils.loss import Loss
 from utils.utils import *
-from models.model import GuidanceModel, AttentionModel
+from models.model import *
 import yaml
 from tqdm import tqdm
 from pytorch_lightning import seed_everything
@@ -29,6 +29,8 @@ def train(config_path):
     eval_data_root = config['eval_data_root']
     origin_alpha = config['origin_alpha']
     lr = config['learning_rate']
+    nu_init_text = config['nu_init_text']
+    guid_model = config['model_zero_init']
     
     model_config = config['model']
     init_g = model_config['init_g']
@@ -39,12 +41,18 @@ def train(config_path):
     lambda_t = loss_config['lambda_text']
     lambda_s = loss_config['lambda_structure']
     dino_thres = loss_config['dino_threshold']
+    blip_use = loss_config['generate_condition_prompt']
+    guid_sche_use = loss_config['guidance_schedule_use']
+    
+    model_class = 'zero_init' if guid_model else 'half init'
+    struct_text = 'blip ' if blip_use else nu_init_text
+    
     
     timestamp = get_timestamp()
     
-    name = f"work-{timestamp}-linear blip pnp {pnp_rate} alpha {origin_alpha}\
-            lambda_t {lambda_t}, lambda_s {lambda_s}, dino thres {dino_thres},\
-            init {init_g}, div {divide_out} lr {lr}"
+    name = f'''work-{timestamp}-linear {model_class} pnp {pnp_rate} alpha {origin_alpha}
+               lambda_t {lambda_t}, lambda_s {lambda_s}, dino thres {dino_thres},
+               init {init_g}, div {divide_out} lr {lr}, s_text {struct_text}, guidance_schedule_use {guid_sche_use}'''
         ############ WANDB INIT #############
     print("--------------- Wandb SETTING ---------------")
     dotenv.load_dotenv()
@@ -74,36 +82,27 @@ def train(config_path):
                ' at daytime']
     
     
-    dataset = DomainChangeDataset(data_directory=train_data_root)
+    dataset = DomainChangeDataset(data_directory=train_data_root, data_length=1000)
     dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
     
-    
-    model = GuidanceModel(**model_config).to(device)
-    '''model = GuidanceModel(init_g= 200.0,
-                          divide_out=0.5,
-                          num_guidance_info=1,
-                          linear_in_size=1536,
-                          num_mlp_layers=3,
-                          hidden_act='gelu').to(train_device)'''
+    guidancemodel = GuidanceModel2 if guid_model else GuidanceModel
+    model = guidancemodel(**model_config).to(device)
 
     criterion = Loss(**loss_config).to(device)
-    '''criterion = Loss(lambda_text=2.0,
-                     lambda_structure=1.0,
-                     device=train_device,
-                     data_root=data_root,
-                     dino_threshold=0.25,
-                     num_condition=1,
-                     generate_condition_prompt=True,
-                     pnp_injection_rate=0.9).to(train_device)'''
     
     conditioned_prompt_embedds = criterion.prompt_embeds
     original_image_embedds = criterion.image_clip_embeds
+    
+    if loss_config['generate_condition_prompt']:
+        generate_prompt = criterion.pipeline.generate_prompt
+    
 
     optimizer = torch.optim.Adam(model.parameters(), lr)
     optimizer_scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer=optimizer,
                                                             lr_lambda=lambda epoch: 0.99*epoch)
     min_val_loss = 1000
     
+
     for epoch in range(50):
         print(f"epoch : {epoch}")
         #dataset.update_condition_set()
@@ -116,10 +115,22 @@ def train(config_path):
                 real_images = [Image.open(img).convert('RGB') for img in image_dirs]
                 
                 data_len = len(image_dirs)
-                domain_prompts = [domains[randint(0,12)] for _ in range(data_len)]
-
-                domain_prompt_embed = conditioned_prompt_embedds(domain_prompts)
-                domain_prompts = [domain_prompts]
+                selected_prompts = [domains[randint(0,12)] for _ in range(data_len)]
+                
+                if blip_use:
+                    assert nu_init_text == "", "nu_init_text must be null text"
+                    original_prompts = generate_prompt(real_images)
+                    blip_domain_prompts = [original_prompts[i]+selected_prompts[i] for i in range(data_len)]
+                    domain_prompt_embed = conditioned_prompt_embedds(blip_domain_prompts)
+                    domain_prompts = selected_prompts
+                elif nu_init_text != "":
+                    domain_prompts = [nu_init_text+selected_prompts[i] for i in range(data_len)]
+                    domain_prompt_embed = conditioned_prompt_embedds(domain_prompts)
+                else:
+                    domain_prompts = selected_prompts
+                    domain_prompt_embed = conditioned_prompt_embedds(selected_prompts)
+                
+                input_prompts = [domain_prompts]
 
                 #text clip embedding : model inputs
                 original_image_emb = original_image_embedds(real_images)
@@ -133,7 +144,7 @@ def train(config_path):
 
                 loss, _g, _p, _ccs, _dcs = criterion(image_dirs=image_dirs,
                                                      real_images=real_images,
-                                                     prompts=domain_prompts, 
+                                                     prompts=input_prompts, 
                                                      g_init=pred_ginit,
                                                      origin_alpha=origin_alpha,
                                                      g_portion=None)
@@ -150,8 +161,8 @@ def train(config_path):
 
                 for ps in range(len(preds)):
                     log_conditions_values ={}
-                    log_conditions_values['g_init'+ domain_prompts[0][ps]] = preds.item(ps)
-                    log_conditions_values['clip cosin similarity'+ domain_prompts[0][ps]] = ccs.item(ps)
+                    log_conditions_values['g_init'+ selected_prompts[ps]] = preds.item(ps)
+                    log_conditions_values['clip cosin similarity'+ selected_prompts[ps]] = ccs.item(ps)
                     log_conditions_values['dino cosin similarity'] = struc_dcs.item(ps)
                     wandb.log(log_conditions_values)
 
@@ -165,7 +176,7 @@ def train(config_path):
             )
         
         optimizer_scheduler.step()
-        if epoch%2==0 and epoch!=0:
+        if epoch%2==0:
             valid_epoch_loss = linear_eval(model= model,
                                            criterion=criterion,
                                            data_root=eval_data_root,
@@ -173,6 +184,8 @@ def train(config_path):
                                            save_image_path=f'Evalutate_images_results/{timestamp}',
                                            epoch=epoch,
                                            device=device,
+                                           nu_init_text=nu_init_text,
+                                           origin_alpha=origin_alpha
                                            )
             wandb.log(
                     {   "epoch":epoch+1,

@@ -24,22 +24,20 @@ class PnPPipeline(nn.Module):
                  device : str = 'cuda',
                  pnp_attn_t : float = 0.9,
                  pnp_f_t : float = 0.9,
-                 init_text :str = "a photography of",
-                 generate_condition_prompt : bool = False,
-                 tensor_out : bool = False,
-                 train_mode : bool = False,
+                 blip_use : bool = False,
+                 blip_init_text :str = "a photography of",
+                 tensor_out : bool = False
                  ):
         super().__init__()
 
         self.device = device
-        self.generate_condition_prompt = generate_condition_prompt #if only input the condition
-        self.init_text = init_text
+        self.blip_use = blip_use #if only input the condition
+        self.blip_init_text = blip_init_text
         self.latents_steps = latents_steps
         self.n_timestep=n_timestep
         self.pnp_attn_t = int(n_timestep*pnp_attn_t)
         self.pnp_f_t = int(n_timestep*pnp_f_t)
         self.tensor_out = tensor_out
-        self._train_mode = train_mode
         
 
         if sd_version == '2.1':
@@ -69,21 +67,20 @@ class PnPPipeline(nn.Module):
         self.image_processor = None
         self.i2t_model = None
         
-        if self.generate_condition_prompt:
+        if self.blip_use:
             self.image_processor = BlipProcessor.from_pretrained("Salesforce/blip-image-captioning-large") 
             self.i2t_model = BlipForConditionalGeneration.from_pretrained("Salesforce/blip-image-captioning-large").to(self.device)
             
         self.init_pnp(self.pnp_f_t, self.pnp_attn_t)
         
-        if self._train_mode:
-            for p in self.vae.parameters():
-                p.requires_grad=False
-                
-            for p in self.text_encoder.parameters():
-                p.requires_grad=False
-                
-            for p in self.unet.parameters():
-                p.requires_grad=False
+        for p in self.vae.parameters():
+            p.requires_grad=False
+            
+        for p in self.text_encoder.parameters():
+            p.requires_grad=False
+            
+        for p in self.unet.parameters():
+            p.requires_grad=False
             
         
     def init_pnp(self, conv_injection_t, qk_injection_t):
@@ -95,8 +92,10 @@ class PnPPipeline(nn.Module):
         
     @torch.no_grad()
     def generate_prompt(self, image_dirs):
-        
-        images = [Image.open(img) for img in image_dirs]
+        if isinstance(image_dirs[0], Path):
+            images = [Image.open(img) for img in image_dirs]
+        else:
+            images = image_dirs
         
         text = [self.init_text]*len(images)
         inputs = self.image_processor(images, text, 
@@ -213,7 +212,7 @@ class PnPPipeline(nn.Module):
                  num_condition : int = 1,
                  image_dirs : Union[Path, List[Path]] = None,
                  prompts : Optional[Union[str, List[str]]] = None,
-                 
+                 blip_conditions : Optional[Union[str, List[str]]] = None,
                  origin_alpha : Optional[torch.Tensor] = None,
                  guidance_scales : Optional[torch.Tensor] = None,
                  guidance_portion : Optional[torch.Tensor] = None,
@@ -257,10 +256,11 @@ class PnPPipeline(nn.Module):
 
         #todo: multicondition
         #image to text
-        if self.generate_condition_prompt:
+        if self.blip_use:
+            assert blip_conditions is not None, 'if you want to use blip, input the blip condition but not prompts'
             i2t = self.generate_prompt(image_dirs)
             #combine with condition
-            prompts = [[i2t[i]+prompts[j][i] for i in range(batch_size)] for j in range(self.num_condition)]
+            prompts = [[i2t[i]+blip_conditions[j][i] for i in range(batch_size)] for j in range(self.num_condition)]
         elif prompts is None:
             prompts = ""
             print(f"Warning : the prompt is Null text")

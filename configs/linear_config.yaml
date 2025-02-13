@@ -3,10 +3,12 @@ device : "cuda:0"
 
 #dataset
 train_data_root : './image_data/train' #loss:data_root
-eval_data_root : './imagee_data/eval'
+eval_data_root : './image_data/eval'
 batch_size : 5
-learning_rate : 0.00005
-origin_alpha : 0.6
+learning_rate : 0.0001
+origin_alpha : 0.2
+nu_init_text : ""
+model_zero_init : False
 
 model:
     init_g : 200.0
@@ -18,13 +20,14 @@ model:
 
 loss:
     negative_prompt: 'ugly, blurry, low res, unrealistic, paint'
-    lambda_text : 2.0
+    lambda_text : 4.0
     lambda_structure : 1.0
     train_save_image_path : None
     latents_save_root : 'latents_forward'
     dino_threshold : 0.3
     num_condition : 1
-    generate_condition_prompt : False
+    guidance_schedule_use : True
+    generate_condition_prompt : True
     pnp_injection_rate : 0.9
     blip_init_text : "a photography of"
     ##data_root = train_data_root

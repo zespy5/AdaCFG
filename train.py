@@ -80,6 +80,7 @@ def train(data_root, train_device):
     
     conditioned_prompt_embedds = criterion.prompt_embeds
     original_image_embedds = criterion.image_clip_embeds
+    generate_prompt = criterion.pipeline.generate_prompt
     lr = 0.0001
 
     optimizer = torch.optim.Adam(model.parameters(), lr)
@@ -97,7 +98,7 @@ def train(data_root, train_device):
                 idxs= image_idx.numpy()
                 image_dirs = [data_root/f'{idx:03}.png' for idx in idxs]
                 real_images = [Image.open(img).convert('RGB') for img in image_dirs]
-                original_prompts = [generate_prompt(img).replace(' at night','') for img in real_images]
+                original_prompts = generate_prompt(real_images)
                 
                 data_len = len(image_dirs)
                 season_prompts = [seasons[randint(0,4)] for _ in range(data_len)]
