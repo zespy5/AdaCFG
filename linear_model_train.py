@@ -50,7 +50,7 @@ def train(config_path):
     
     timestamp = get_timestamp()
     
-    name = f'''work-{timestamp}-linear {model_class} pnp {pnp_rate} alpha {origin_alpha}
+    name = f'''work-{timestamp}-linear increase {model_class} pnp {pnp_rate} alpha {origin_alpha}
                lambda_t {lambda_t}, lambda_s {lambda_s}, dino thres {dino_thres},
                init {init_g}, div {divide_out} lr {lr}, s_text {struct_text}, guidance_schedule_use {guid_sche_use}'''
         ############ WANDB INIT #############

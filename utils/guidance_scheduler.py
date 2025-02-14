@@ -77,8 +77,8 @@ class GuidanceScheduler(DDIMScheduler):
         
         scheduler = self.schedule().unsqueeze(0).repeat(batch_size,1)
 
-        selected_schedulers = torch.gather(scheduler,1, timesteps)
-        selected_schedulers = selected_schedulers.flip(1).to(self.device)
+        selected_schedulers = torch.gather(scheduler,1, timesteps).to(self.device)
+        #selected_schedulers = selected_schedulers.flip(1)
         
         schedulers = schedule_info*selected_schedulers
         schedulers = torch.where(schedulers<1, 1.0, schedulers)

@@ -35,6 +35,8 @@ class GuidanceModel(nn.Module):
         for _ in range(self.num_mlp_layers):
             self.MLP_modules.append(nn.Linear(self.in_size, self.in_size))
             self.MLP_modules.append(self.activate)
+            
+        self.MLP_modules.append(nn.BatchNorm1d(self.in_size))
         for _ in range(self.num_mlp_layers):
             self.MLP_modules.append(nn.Linear(self.in_size, self.in_size // 2))
             self.MLP_modules.append(self.activate)
@@ -43,12 +45,12 @@ class GuidanceModel(nn.Module):
         self.MLP = nn.Sequential(*self.MLP_modules)
 
         self.out = nn.Linear(self.in_size, self.num_guidance_info)
-
+        self.batchnorm = nn.BatchNorm1d(self.num_guidance_info)
     def forward(self, x):
 
         out = self.MLP(x)
         out = self.out(out)
-
+        out = self.batchnorm(out)
         if self.num_guidance_info==1:
             out *=self.divide_out
             out = torch.sigmoid(out/self.init_G)*self.init_G+1
@@ -95,6 +97,8 @@ class GuidanceModel2(nn.Module):
         for _ in range(self.num_mlp_layers):
             self.MLP_modules.append(nn.Linear(self.in_size, self.in_size))
             self.MLP_modules.append(self.activate)
+        
+        self.MLP_modules.append(nn.BatchNorm1d(self.in_size))
         for _ in range(self.num_mlp_layers):
             self.MLP_modules.append(nn.Linear(self.in_size, self.in_size // 2))
             self.MLP_modules.append(self.activate)
@@ -103,12 +107,12 @@ class GuidanceModel2(nn.Module):
         self.MLP = nn.Sequential(*self.MLP_modules)
 
         self.out = nn.Linear(self.in_size, self.num_guidance_info)
-
+        self.batchnorm = nn.BatchNorm1d(self.num_guidance_info)
     def forward(self, x):
 
         out = self.MLP(x)
         out = self.out(out)
-
+        out = self.batchnorm(out)
         if self.num_guidance_info==1:
             out *=self.divide_out
             out = self.relu(2*(torch.sigmoid(out/self.init_G)-0.5))
