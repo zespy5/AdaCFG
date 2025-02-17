@@ -4,12 +4,14 @@ import torch.nn as nn
 from PIL import Image
 from transformers import AutoImageProcessor, AutoModel, CLIPModel, CLIPProcessor
 import torch.nn.functional as F
-from utils.guidance_scheduler import GuidanceScheduler
+from util.guidance_scheduler import GuidanceScheduler
 from pnp import PnPPipeline
 from pathlib import Path
 from torchvision.transforms import Compose, Resize, CenterCrop, ToTensor, Normalize
 from torchvision.transforms import InterpolationMode
+from metrics.extractor import VitExtractor
 BICUBIC = InterpolationMode.BICUBIC
+BILINEAR = InterpolationMode.BILINEAR
 
 class Loss(nn.Module):
     
@@ -27,6 +29,7 @@ class Loss(nn.Module):
                  blip_init_text: str = "a photography of",
                  data_root : str='image_data/train',
                  device :str = 'cuda',
+                 dino_loss_use : bool = True,
                  **kwargs
                  ):
         super().__init__()
@@ -43,6 +46,7 @@ class Loss(nn.Module):
         self.pnp_injection_rate = pnp_injection_rate
         self.blip_init_text = blip_init_text
         self.guidance_schedule_use = guidance_schedule_use
+        self.dino_loss_use = dino_loss_use
         
         self.data_root = Path(data_root)
         
@@ -57,15 +61,26 @@ class Loss(nn.Module):
         
         self.clip_model = CLIPModel.from_pretrained("openai/clip-vit-large-patch14").to(self.device)
         self.clip_processor = CLIPProcessor.from_pretrained("openai/clip-vit-large-patch14")
-        self.dino_model = AutoModel.from_pretrained('facebook/dinov2-large').to(self.device)
-        self.dino_processor = AutoImageProcessor.from_pretrained('facebook/dinov2-large')
-
         for p in self.clip_model.parameters():
             p.requires_grad=False
         
-        for p in self.dino_model.parameters():
-            p.requires_grad=False
-            
+        if self.dino_loss_use:
+            self.structure_transform = self.dino_transform()
+            self.dino_model = AutoModel.from_pretrained('facebook/dinov2-large').to(self.device)
+            self.dino_processor = AutoImageProcessor.from_pretrained('facebook/dinov2-large')
+            for p in self.dino_model.parameters():
+                p.requires_grad=False 
+        else :
+            self.structure_transform = self.dino_transform(224,BILINEAR,480)
+            imagenet_norm = Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))
+            global_resize_transform = Resize(224, max_size=480)
+            self.keys_self_sim_transform = Compose([ToTensor(), global_resize_transform, imagenet_norm])
+            self.vit_extractor = VitExtractor('dino_vitb16', self.device)
+            for p in self.vit_extractor.model.parameters():
+                p.requires_grad=False
+        
+        self.structure_loss_func = self.dino_loss if self.dino_loss_use else self.keys_self_sim_score
+   
     @torch.no_grad()
     def prompt_embeds(self, prompts):
         clip_inputs = self.clip_processor(text=prompts,
@@ -121,9 +136,9 @@ class Loss(nn.Module):
             Normalize((0.48145466, 0.4578275, 0.40821073), (0.26862954, 0.26130258, 0.27577711)),
         ])
         
-    def dino_transform(self):
+    def dino_transform(self, n_px= 256,interpolation=BICUBIC, max_size=None):
         return Compose([
-            Resize(256, interpolation=BICUBIC),
+            Resize(n_px, interpolation=interpolation, max_size=max_size),
             CenterCrop(224),
             Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
         ])
@@ -148,17 +163,34 @@ class Loss(nn.Module):
         with torch.no_grad():
             real_inputs = self.dino_processor(images=real_images, return_tensors="pt").to(self.device)
             real_outputs = self.dino_model(**real_inputs).last_hidden_state
-
-        gen_inputs = self.dino_transform()(gen_images).to(self.device)
-        gen_outputs = self.dino_model(gen_inputs).last_hidden_state
+            real_outputs = real_outputs.view(batch, -1)
         
-        real_outputs = real_outputs.view(batch, -1)
+        gen_inputs = self.structure_transform(gen_images).to(self.device)
+        gen_outputs = self.dino_model(gen_inputs).last_hidden_state
         gen_outputs = gen_outputs.view(batch, -1)
         
         dino_cs = F.cosine_similarity(real_outputs, gen_outputs, dim=1)
         loss = (1-dino_cs)
         loss = loss.view(-1).mean()
         return loss, dino_cs
+    
+    def keys_self_sim_score(self, real, gen):
+        batch_size = len(gen)
+        
+        with torch.no_grad():
+            real_inputs = torch.cat([self.keys_self_sim_transform(img).unsqueeze(0) for img in real]).to(self.device)
+            real_outputs = self.vit_extractor.get_keys_self_sim_from_input(real_inputs, 11)
+            real_t = real_outputs.view(batch_size,-1)
+            
+        gen_inputs = self.structure_transform(gen).to(self.device)
+        gen_outputs = self.vit_extractor.get_keys_self_sim_from_input(gen_inputs, 11)
+        gen_t = gen_outputs.view(batch_size,-1)
+           
+        ksss_cs = F.cosine_similarity(real_t, gen_t, dim=1)
+        loss = (1-ksss_cs)
+        loss = loss.view(-1).mean()
+        
+        return loss, ksss_cs
     
     def forward(self, 
                 image_dirs,
@@ -187,11 +219,11 @@ class Loss(nn.Module):
 
         text_loss = torch.cat(text_losses).sum()
 
-        structure_loss, dino_cs = self.dino_loss(real_images, gen_images)
+        structure_loss, dino_cs = self.structure_loss_func(real_images, gen_images)
 
-        threshold = torch.ones_like(structure_loss)*self.dino_threshold
-        thresholded_structure_loss = torch.max(threshold,structure_loss)
-        #thresholded_structure_loss = torch.sqrt((structure_loss - self.dino_threshold)**2)
+        #threshold = torch.ones_like(structure_loss)*self.dino_threshold
+        #thresholded_structure_loss = torch.max(threshold,structure_loss)
+        thresholded_structure_loss = torch.sqrt((structure_loss - self.dino_threshold)**2)
 
         loss = self.lambda_text*text_loss + self.lambda_structure*thresholded_structure_loss
         # todo  : 0.5*g_portion**2

@@ -10,7 +10,7 @@ from tqdm import tqdm
 from transformers import logging, BlipProcessor, BlipForConditionalGeneration
 from diffusers import DDIMScheduler, StableDiffusionPipeline
 from diffusers.utils import BaseOutput
-from utils.pnp_utils import *
+from util.pnp_utils import *
 
 # suppress partial model loading warning
 logging.set_verbosity_error()
@@ -97,9 +97,9 @@ class PnPPipeline(nn.Module):
         else:
             images = image_dirs
         
-        text = [self.init_text]*len(images)
+        text = [self.blip_init_text]*len(images)
         inputs = self.image_processor(images, text, 
-                                      return_tensors="pt").to(self.device, torch.float16)
+                                      return_tensors="pt").to(self.device)
 
         outputs = self.i2t_model.generate(**inputs)
 
@@ -264,7 +264,6 @@ class PnPPipeline(nn.Module):
         elif prompts is None:
             prompts = ""
             print(f"Warning : the prompt is Null text")
-            
             
         #negative prompt
         negative_prompt = "" if negative_prompt==None else negative_prompt

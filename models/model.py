@@ -43,13 +43,13 @@ class GuidanceModel(nn.Module):
             self.in_size = self.in_size // 2
 
         self.MLP = nn.Sequential(*self.MLP_modules)
-        self.batchnorm = nn.BatchNorm1d(self.in_size)
+        #self.batchnorm = nn.BatchNorm1d(self.in_size)
         self.out = nn.Linear(self.in_size, self.num_guidance_info)
         
     def forward(self, x):
 
         out = self.MLP(x)
-        out = self.batchnorm(out)
+        #out = self.batchnorm(out)
         out = self.out(out)
         
         if self.num_guidance_info==1:
@@ -106,13 +106,13 @@ class GuidanceModel2(nn.Module):
             self.in_size = self.in_size // 2
 
         self.MLP = nn.Sequential(*self.MLP_modules)
-        self.batchnorm = nn.BatchNorm1d(self.in_size)
+        #self.batchnorm = nn.BatchNorm1d(self.in_size)
         self.out = nn.Linear(self.in_size, self.num_guidance_info)
         
     def forward(self, x):
 
         out = self.MLP(x)
-        out = self.batchnorm(out)
+        #out = self.batchnorm(out)
         out = self.out(out)
         
         if self.num_guidance_info==1:

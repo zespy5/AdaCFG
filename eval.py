@@ -4,8 +4,8 @@ import wandb
 import torch
 import numpy as np
 from data.Dataset import DomainChangeDataset
-from utils.loss import Loss
-from utils.utils import *
+from util.loss import Loss
+from util.utils import *
 from models.model import GuidanceModel
 import yaml
 from tqdm import tqdm

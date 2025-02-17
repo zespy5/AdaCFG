@@ -2,7 +2,7 @@ from pnp import PnPPipeline
 from PIL import Image
 import matplotlib.pyplot as plt
 from pathlib import Path
-from utils.guidance_scheduler import GuidanceScheduler
+from util.guidance_scheduler import GuidanceScheduler
 import torch
 
 

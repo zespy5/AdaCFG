@@ -4,8 +4,8 @@ import wandb
 import torch
 import numpy as np
 from data.Dataset import DomainChangeDataset
-from utils.loss import Loss
-from utils.utils import *
+from util.loss import Loss
+from util.utils import *
 from models.model import *
 import yaml
 from tqdm import tqdm
@@ -41,17 +41,19 @@ def train(config_path):
     lambda_t = loss_config['lambda_text']
     lambda_s = loss_config['lambda_structure']
     dino_thres = loss_config['dino_threshold']
-    blip_use = loss_config['generate_condition_prompt']
+    dino_loss_use = loss_config['dino_loss_use']
+    blip_use = loss_config['blip_use']
     guid_sche_use = loss_config['guidance_schedule_use']
+    
     
     model_class = 'zero_init' if guid_model else 'half init'
     struct_text = 'blip ' if blip_use else nu_init_text
-    
+    structure_loss = "dino CosinSim" if dino_loss_use else "keys_ssim" 
     
     timestamp = get_timestamp()
     
     name = f'''work-{timestamp}-linear increase {model_class} pnp {pnp_rate} alpha {origin_alpha}
-               lambda_t {lambda_t}, lambda_s {lambda_s}, dino thres {dino_thres},
+               lambda_t {lambda_t}, lambda_s {lambda_s}, dino thres {dino_thres} sqrt, loss {structure_loss},
                init {init_g}, div {divide_out} lr {lr}, s_text {struct_text}, guidance_schedule_use {guid_sche_use}'''
         ############ WANDB INIT #############
     print("--------------- Wandb SETTING ---------------")
@@ -93,7 +95,7 @@ def train(config_path):
     conditioned_prompt_embedds = criterion.prompt_embeds
     original_image_embedds = criterion.image_clip_embeds
     
-    if loss_config['generate_condition_prompt']:
+    if loss_config['blip_use']:
         generate_prompt = criterion.pipeline.generate_prompt
     
 
