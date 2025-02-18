@@ -169,12 +169,12 @@ class Loss(nn.Module):
                                                               clip_inputs["attention_mask"].to(self.device))
             from_text_feaures, to_text_features = text_features.chunk(2)
             delta_text_features = to_text_features-from_text_feaures
-        
+
         transform_gen_images = self.clip_transform()(gen_images)
         img_features = self.clip_model.get_image_features(transform_gen_images.to(self.device))
         
         delta_image_features = img_features-real_image_features
-        
+
 
         clip_cs = F.cosine_similarity(delta_text_features, delta_image_features, dim=1)
         loss = (1-clip_cs)

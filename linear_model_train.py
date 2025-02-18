@@ -44,16 +44,16 @@ def train(config_path):
     dino_loss_use = loss_config['dino_loss_use']
     blip_use = loss_config['blip_use']
     guid_sche_use = loss_config['guidance_schedule_use']
-    
+    clip_ds_use = loss_config['clip_ds_use']
     
     model_class = 'zero_init' if guid_model else 'half init'
     struct_text = 'blip ' if blip_use else nu_init_text
     structure_loss = "dino CosinSim" if dino_loss_use else "keys_ssim" 
-    
+    clip_loss = "clip_ds" if clip_ds_use else "clip"
     timestamp = get_timestamp()
     
     name = f'''work-{timestamp}-linear increase {model_class} pnp {pnp_rate} alpha {origin_alpha}
-               lambda_t {lambda_t}, lambda_s {lambda_s}, dino thres {dino_thres} sqrt, loss {structure_loss},
+               lambda_t {lambda_t}, lambda_s {lambda_s}, dino thres {dino_thres} sqrt, s_loss {structure_loss}, t_loss {clip_loss}
                init {init_g}, div {divide_out} lr {lr}, s_text {struct_text}, guidance_schedule_use {guid_sche_use}'''
         ############ WANDB INIT #############
     print("--------------- Wandb SETTING ---------------")
@@ -149,7 +149,7 @@ def train(config_path):
 
                 loss, _g, _p, _ccs, _dcs = criterion(image_dirs=image_dirs,
                                                      real_images=real_images,
-                                                     from_prompt= from_prompt,
+                                                     from_prompts= from_prompt,
                                                      prompts=input_prompts, 
                                                      g_init=pred_ginit,
                                                      origin_alpha=origin_alpha,
