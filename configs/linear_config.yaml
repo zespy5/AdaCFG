@@ -20,17 +20,18 @@ model:
 
 loss:
     negative_prompt: 'ugly, blurry, low res, unrealistic, paint'
-    lambda_text : 1.0
-    lambda_structure : 2.0
+    lambda_text : 2.0
+    lambda_structure : 1.0
     train_save_image_path : None
     latents_save_root : 'latents_forward'
-    dino_threshold : 0.1
+    dino_threshold : 0.2
     num_condition : 1
     guidance_schedule_use : True
     blip_use : True
     pnp_injection_rate : 0.9
     blip_init_text : "a photography of"
-    dino_loss_use : False
+    dino_loss_use : True
+    clip_ds_use : True
     ##data_root = train_data_root
     ##device = device
 

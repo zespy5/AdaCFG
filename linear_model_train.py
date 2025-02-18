@@ -125,12 +125,15 @@ def train(config_path):
                     blip_domain_prompts = [original_prompts[i]+selected_prompts[i] for i in range(data_len)]
                     domain_prompt_embed = conditioned_prompt_embedds(blip_domain_prompts)
                     domain_prompts = selected_prompts
+                    from_prompt = original_prompts
                 elif nu_init_text != "":
                     domain_prompts = [nu_init_text+selected_prompts[i] for i in range(data_len)]
                     domain_prompt_embed = conditioned_prompt_embedds(domain_prompts)
+                    from_prompt = [nu_init_text for _ in range(data_len)]
                 else:
                     domain_prompts = selected_prompts
                     domain_prompt_embed = conditioned_prompt_embedds(selected_prompts)
+                    from_prompt = ["" for _ in range(data_len)]
                 
                 input_prompts = [domain_prompts]
 
@@ -146,6 +149,7 @@ def train(config_path):
 
                 loss, _g, _p, _ccs, _dcs = criterion(image_dirs=image_dirs,
                                                      real_images=real_images,
+                                                     from_prompt= from_prompt,
                                                      prompts=input_prompts, 
                                                      g_init=pred_ginit,
                                                      origin_alpha=origin_alpha,

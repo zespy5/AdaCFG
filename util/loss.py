@@ -30,6 +30,7 @@ class Loss(nn.Module):
                  data_root : str='image_data/train',
                  device :str = 'cuda',
                  dino_loss_use : bool = True,
+                 clip_ds_use : bool = True,
                  **kwargs
                  ):
         super().__init__()
@@ -47,6 +48,7 @@ class Loss(nn.Module):
         self.blip_init_text = blip_init_text
         self.guidance_schedule_use = guidance_schedule_use
         self.dino_loss_use = dino_loss_use
+        self.clip_ds_use = clip_ds_use
         
         self.data_root = Path(data_root)
         
@@ -158,6 +160,27 @@ class Loss(nn.Module):
         loss = loss.view(-1).mean()
         return loss, clip_cs
     
+    def clip_ds_loss(self, real_images,  gen_images, from_prompts, to_prompts):
+        prompts = from_prompts + to_prompts
+        with torch.no_grad():
+            clip_inputs = self.clip_processor(text=prompts,images=real_images, return_tensors="pt", padding=True)
+            real_image_features = self.clip_model.get_image_features(clip_inputs['pixel_values'].to(self.device))
+            text_features = self.clip_model.get_text_features(clip_inputs["input_ids"].to(self.device),
+                                                              clip_inputs["attention_mask"].to(self.device))
+            from_text_feaures, to_text_features = text_features.chunk(2)
+            delta_text_features = to_text_features-from_text_feaures
+        
+        transform_gen_images = self.clip_transform()(gen_images)
+        img_features = self.clip_model.get_image_features(transform_gen_images.to(self.device))
+        
+        delta_image_features = img_features-real_image_features
+        
+
+        clip_cs = F.cosine_similarity(delta_text_features, delta_image_features, dim=1)
+        loss = (1-clip_cs)
+        loss = loss.view(-1).mean()
+        return loss, clip_cs
+    
     def dino_loss(self, real_images, gen_images):
         batch = gen_images.shape[0]
         with torch.no_grad():
@@ -195,6 +218,7 @@ class Loss(nn.Module):
     def forward(self, 
                 image_dirs,
                 real_images, 
+                from_prompts,
                 prompts,
                 origin_alpha:Optional[Union[torch.Tensor,float]]=None,
                 g_init:Optional[torch.Tensor]=None,
@@ -212,10 +236,16 @@ class Loss(nn.Module):
         text_losses = []
         clip_cses = []
         
-        for p in prompt_c:
-            clip_loss, clip_cs = self.clip_loss(gen_images, p)
+        if self.clip_ds_use:
+            to_prompts = prompts[0]
+            clip_loss, clip_cs = self.clip_ds_loss(real_images,gen_images, from_prompts, to_prompts)
             text_losses.append(clip_loss.unsqueeze(0))
             clip_cses.append(clip_cs.squeeze())
+        else:
+            for p in prompt_c:
+                clip_loss, clip_cs = self.clip_loss(gen_images, p)
+                text_losses.append(clip_loss.unsqueeze(0))
+                clip_cses.append(clip_cs.squeeze())
 
         text_loss = torch.cat(text_losses).sum()
 
