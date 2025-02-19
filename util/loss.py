@@ -117,6 +117,15 @@ class Loss(nn.Module):
         return loss, clip_cs
     
     def clip_ds_loss(self, real_images,  gen_images, from_prompts, to_prompts):
+        prompts = from_prompts + to_prompts
+        with torch.no_grad():
+            clip_inputs = self.clip_processor(text=prompts,images=real_images, return_tensors="pt", padding=True)
+            real_image_features = self.clip_model.get_image_features(clip_inputs['pixel_values'].to(self.device))
+            text_features = self.clip_model.get_text_features(clip_inputs["input_ids"].to(self.device),
+                                                              clip_inputs["attention_mask"].to(self.device))
+            from_text_feaures, to_text_features = text_features.chunk(2)
+            delta_text_features = to_text_features-from_text_feaures
+
 
         transform_gen_images = self.clip_transform()(gen_images)
         img_features = self.clip_model.get_image_features(transform_gen_images.to(self.device))

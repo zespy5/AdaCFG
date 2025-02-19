@@ -51,16 +51,16 @@ def train(config_path):
     dino_thres = loss_config['dino_threshold']
     dino_loss_use = loss_config['dino_loss_use']
     guid_sche_use = loss_config['guidance_schedule_use']
-    
+    clip_ds_use = loss_config['clip_ds_use']
     
     model_class = 'zero_init' if guid_model else 'half init'
     struct_text = train_embedding_data.split('/')[-1].split('_')[0]
     structure_loss = "dino CosinSim" if dino_loss_use else "keys_ssim" 
-    
+    clip_loss = "clip_ds" if clip_ds_use else "clip"
     timestamp = get_timestamp()
     
     name = f'''work-{timestamp}-linear increase {model_class} pnp {pnp_rate} alpha {origin_alpha}
-               lambda_t {lambda_t}, lambda_s {lambda_s}, dino thres {dino_thres} sqrt, loss {structure_loss},
+               lambda_t {lambda_t}, lambda_s {lambda_s}, dino thres {dino_thres} sqrt, s_loss {structure_loss}, t_loss {clip_loss}
                init {init_g}, div {divide_out} lr {lr}, s_text {struct_text}, guidance_schedule_use {guid_sche_use}'''
         ############ WANDB INIT #############
     print("--------------- Wandb SETTING ---------------")
