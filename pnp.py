@@ -19,7 +19,6 @@ logging.set_verbosity_error()
 class PnPPipeline(nn.Module):
     def __init__(self,
                  n_timestep : int =50,
-                 sd_version : str ='2.1',
                  latents_steps : int=1000,
                  device : str = 'cuda',
                  pnp_attn_t : float = 0.9,
@@ -40,17 +39,9 @@ class PnPPipeline(nn.Module):
         self.tensor_out = tensor_out
         
 
-        if sd_version == '2.1':
-            model_key = "stabilityai/stable-diffusion-2-1-base"
-        elif sd_version == '2.0':
-            model_key = "stabilityai/stable-diffusion-2-base"
-        elif sd_version == '1.5':
-            model_key = "runwayml/stable-diffusion-v1-5"
-        else:
-            raise ValueError(f'Stable-diffusion version {sd_version} not supported.')
+        model_key = "stabilityai/stable-diffusion-2-1-base"
 
-
-        pipe = StableDiffusionPipeline.from_pretrained(model_key, torch_dtype=torch.float16).to(self.device)
+        pipe = StableDiffusionPipeline.from_pretrained(model_key).to(self.device)
         pipe.enable_xformers_memory_efficient_attention()
 
         self.vae = pipe.vae
@@ -128,9 +119,15 @@ class PnPPipeline(nn.Module):
 
     def denoise_step(self, x, t, i):
         batch_size, channels, h, w = x.shape
-        # register the time step and features in pnp injection modules
-        source_latents = [self.load_source_latents_t(t,latent) for latent in self.source_latents_save_dirs]
-        source_latents = torch.cat(source_latents).to(self.device)
+        
+        if self.image_latents is None:
+            # register the time step and features in pnp injection modules
+            source_latents = [self.load_source_latents_t(t,latent) for latent in self.source_latents_save_dirs]
+            source_latents = torch.cat(source_latents).to(self.device)
+        else:
+            source_latents = self.image_latents[:,i]
+            breakpoint()
+            
         _xs = [x]*(self.num_condition+1)
         latent_model_input = torch.cat([source_latents] + _xs)
         # latent_model_input [batch*(num_condition+2), 4, 64, 64]
@@ -152,11 +149,9 @@ class PnPPipeline(nn.Module):
         _num_condition = self.num_condition+2
         noise_pred = noise_pred.chunk(_num_condition)
         origin_noise = noise_pred[0]
-        #breakpoint()
         noise_pred_uncond = noise_pred[1]
-        #breakpoint()
         noise_pred_conds = noise_pred[2:]
-        #breakpoint()
+
         
         likelihood = torch.zeros_like(noise_pred_uncond)
         guide = self.guidance_scales[:,i].view(batch_size,1,1,1)
@@ -164,14 +159,8 @@ class PnPPipeline(nn.Module):
             g_portion = self.guidance_portion[:,c].view(batch_size,1,1,1)
             likelihood += g_portion*(noise_pred_conds[c] - noise_pred_uncond)
 
-        #breakpoint()
-        #likelihood [batch_size*num_condition, 4,64,64]
         adaptive_likelihood = guide*likelihood
-        #adaptive_likelihood = torch.sum(adaptive_likelihood, dim=1)
-        #adaptive_likelihood [batch_size,4,64,64]
-        #breakpoint()
         noise_pred = noise_pred_uncond + adaptive_likelihood
-        #noise_pred[batch_size,4,64,64]
         noise_pred = self.origin_alpha*origin_noise + (1-self.origin_alpha)*noise_pred
 
         
@@ -209,14 +198,22 @@ class PnPPipeline(nn.Module):
     
     
     def __call__(self,
-                 num_condition : int = 1,
                  image_dirs : Union[Path, List[Path]] = None,
+                 image_latents : Optional[torch.Tensor] = None,
+                 
                  prompts : Optional[Union[str, List[str]]] = None,
+                 prompts_embeddings : Optional[torch.Tensor] = None,
+                 
+                 negative_prompt: Optional[str] = None,
+                 negative_prompt_embeddings : Optional[torch.Tensor] = None,
+                 
                  blip_conditions : Optional[Union[str, List[str]]] = None,
+                 num_condition : int = 1,
+                 
                  origin_alpha : Optional[torch.Tensor] = None,
                  guidance_scales : Optional[torch.Tensor] = None,
                  guidance_portion : Optional[torch.Tensor] = None,
-                 negative_prompt: Optional[str] = None,
+                 
                  latents_save_root : str = 'latents_forward',
                  ):
 
@@ -224,7 +221,13 @@ class PnPPipeline(nn.Module):
         self.num_condition = num_condition
         register_condition_num(self, self.num_condition)
         
-        if image_dirs is not None:
+        self.image_latents = image_latents
+        self.prompts_embeddings = prompts_embeddings
+        self.negative_prompt_embeddings = negative_prompt_embeddings
+        
+        if self.image_latents is None:
+            
+            assert image_dirs is not None, "image_dirs must not be None"
             # make list variable
             image_dirs = [image_dirs] if not isinstance(image_dirs, list) else image_dirs
             
@@ -252,31 +255,40 @@ class PnPPipeline(nn.Module):
             # call latent zT
             zT = self.get_T_noise()
             #zT = tensor[batch,4,64,64]
+        else:
+            zT = self.image_latents[:,0]
 
 
-        #todo: multicondition
-        #image to text
-        if self.blip_use:
-            assert blip_conditions is not None, 'if you want to use blip, input the blip condition but not prompts'
-            i2t = self.generate_prompt(image_dirs)
-            #combine with condition
-            prompts = [[i2t[i]+blip_conditions[j][i] for i in range(batch_size)] for j in range(self.num_condition)]
-        elif prompts is None:
-            prompts = ""
-            print(f"Warning : the prompt is Null text")
-            
-        #negative prompt
-        negative_prompt = "" if negative_prompt==None else negative_prompt
-            
-        # text encoding
-        text_embeds = [self.get_text_embeds(prompts[i]) for i in range(num_condition)]
-        self.text_embeds = torch.cat(text_embeds)
-        # text_embeds [batch_size*numcondition, 77, 768]
-        negative_text_embeds : torch.Tensor = self.get_text_embeds(negative_prompt)
-        pnp_guidance_embeds : torch.Tensor = self.get_text_embeds("")
+        if self.prompts_embeddings is None:
+            #image to text
+            if self.blip_use:
+                assert blip_conditions is not None, 'if you want to use blip, input the blip condition but not prompts'
+                i2t = self.generate_prompt(image_dirs)
+                #combine with condition
+                prompts = [[i2t[i]+blip_conditions[j][i] for i in range(batch_size)] for j in range(self.num_condition)]
+            elif prompts is None:
+                prompts = ""
+                print(f"Warning : the prompt is Null text")
+                
+            # text encoding
+            text_embeds = [self.get_text_embeds(prompts[i]) for i in range(num_condition)]
+            self.text_embeds = torch.cat(text_embeds)
+        else:
+            self.text_embeds = self.prompts_embeddings
         
+        
+        if self.negative_prompt_embeddings is None:
+            # text_embeds [batch_size*numcondition, 77, 768]
+            #negative prompt
+            negative_prompt = "" if negative_prompt==None else negative_prompt
+            negative_text_embeds : torch.Tensor = self.get_text_embeds(negative_prompt)
+            self.negative_text_embeds = negative_text_embeds.repeat(batch_size,1,1)
+        else:
+            self.negative_text_embeds = self.negative_prompt_embeddings
+        
+        pnp_guidance_embeds : torch.Tensor = self.get_text_embeds("")
         self.pnp_guidance_embeds = pnp_guidance_embeds.repeat(batch_size,1,1)
-        self.negative_text_embeds = negative_text_embeds.repeat(batch_size,1,1)
+        
 
         # define origin alpha
         self.origin_alpha = 0 if origin_alpha is None else origin_alpha
@@ -297,11 +309,13 @@ class PnPPipeline(nn.Module):
         else:
             self.guidance_portion = guidance_portion
         
+        
         # denoising
         decoded_latent = self.sample_loop(zT)
 
+
         if self.tensor_out:
-            return PnPPipelineOutput(images=decoded_latent, prompts=prompts)
+            return PnPPipelineOutput(images=decoded_latent, prompts=[""])
         
         edited_imgs = [T.ToPILImage()(latent) for latent in decoded_latent]
         

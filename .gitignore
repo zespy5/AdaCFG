@@ -10,3 +10,4 @@ ckpts
 train
 # image data
 image_data
+*.ipynb

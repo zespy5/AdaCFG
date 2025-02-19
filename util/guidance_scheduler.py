@@ -1,6 +1,7 @@
 import torch
 from diffusers import DDIMScheduler
 import math
+from typing import Literal
 def betas_for_alpha_bar(
     num_diffusion_timesteps,
     max_beta=0.999,
@@ -49,6 +50,8 @@ class GuidanceScheduler(DDIMScheduler):
     def __init__(self,
                  num_train_timesteps: int = 1000,
                  n_timestep: int = 50,
+                 gradient : Literal['increase', 'decrease', 'constant'] = 'increase',
+                 schedule_method : Literal['cosine', 'linear'] = 'cosine',
                  device : str = 'cuda',
                  ):
         super().__init__(num_train_timesteps=num_train_timesteps)
@@ -56,13 +59,16 @@ class GuidanceScheduler(DDIMScheduler):
         self.num_train_timesteps = num_train_timesteps
         self.set_timesteps(n_timestep)
         self.device = device
+        self.gradient = gradient
+        self.schedule_method = schedule_method
         
 
     @torch.no_grad()
-    def schedule(self):#beta_start:float = 0.00085, beta_end:float = 0.012):
+    def schedule(self,beta_start:float = 0.00085, beta_end:float = 0.012):
         
-        #betas = torch.linspace(beta_start**0.5, beta_end**0.5, self.num_train_timesteps, dtype=torch.float32)**2
-        betas = betas_for_alpha_bar(self.num_train_timesteps)
+        linear = torch.linspace(beta_start**0.5, beta_end**0.5, self.num_train_timesteps, dtype=torch.float32)**2
+        cosine = betas_for_alpha_bar(self.num_train_timesteps)
+        betas = cosine if self.schedule_method=='cosine' else linear
         alphas = 1.0 - betas
         alphas_cumprod = torch.cumprod(alphas, dim=0)
         
@@ -71,6 +77,9 @@ class GuidanceScheduler(DDIMScheduler):
         
     def get_guidance_scales(self, schedule_info : torch.Tensor)->torch.Tensor:
         
+        if self.gradient=='constant':
+            return schedule_info.repeat(1,self.num_inference_steps)
+        
         batch_size, _ = schedule_info.shape
 
         timesteps = self.timesteps.repeat(batch_size,1)
@@ -78,7 +87,7 @@ class GuidanceScheduler(DDIMScheduler):
         scheduler = self.schedule().unsqueeze(0).repeat(batch_size,1)
 
         selected_schedulers = torch.gather(scheduler,1, timesteps).to(self.device)
-        #selected_schedulers = selected_schedulers.flip(1)
+        selected_schedulers = selected_schedulers.flip(1) if self.gradient=='decrease' else selected_schedulers
         
         schedulers = schedule_info*selected_schedulers
         schedulers = torch.where(schedulers<1, 1.0, schedulers)

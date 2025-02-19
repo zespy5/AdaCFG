@@ -25,8 +25,16 @@ def train(config_path):
     seed = config['seed']
     device = config['device']
     batch_size = config['batch_size']
+    data_length = config['data_length']
+    
     train_data_root = Path(config['train_data_root'])
+    train_latent_data = config['train_latent_data']
+    train_embedding_data = config['train_embedding_data']
+    
     eval_data_root = config['eval_data_root']
+    eval_latent_data= config['eval_latent_data']
+    eval_embedding_data = config['eval_embedding_data']
+    
     origin_alpha = config['origin_alpha']
     lr = config['learning_rate']
     nu_init_text = config['nu_init_text']
@@ -42,12 +50,11 @@ def train(config_path):
     lambda_s = loss_config['lambda_structure']
     dino_thres = loss_config['dino_threshold']
     dino_loss_use = loss_config['dino_loss_use']
-    blip_use = loss_config['blip_use']
     guid_sche_use = loss_config['guidance_schedule_use']
     
     
     model_class = 'zero_init' if guid_model else 'half init'
-    struct_text = 'blip ' if blip_use else nu_init_text
+    struct_text = train_embedding_data.split('/')[-1].split('_')[0]
     structure_loss = "dino CosinSim" if dino_loss_use else "keys_ssim" 
     
     timestamp = get_timestamp()
@@ -78,25 +85,28 @@ def train(config_path):
                ' on a snowy day',
                ' on a sunny day',
                ' on a cloudy day',
-               ' at night',
+               ' at night time',
                ' at sunset',
-               ' at sunrise',
                ' at daytime']
     
+    criterion = Loss(device=device,
+                     **loss_config).to(device)
     
-    dataset = DomainChangeDataset(data_directory=train_data_root, data_length=1000)
-    dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
+    conditioned_prompt_embedds = criterion.prompt_embeds(domains)
     
+    train_dataset = DomainChangeDataset(data_directory=train_data_root,
+                                        latents_path=train_latent_data,
+                                        embedding_path=train_embedding_data,
+                                        data_length=data_length,
+                                        conditions=domains,
+                                        conditions_embedding=conditioned_prompt_embedds)
+    train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
+    
+    
+    # todo: eval data set
     guidancemodel = GuidanceModel2 if guid_model else GuidanceModel
     model = guidancemodel(**model_config).to(device)
 
-    criterion = Loss(**loss_config).to(device)
-    
-    conditioned_prompt_embedds = criterion.prompt_embeds
-    original_image_embedds = criterion.image_clip_embeds
-    
-    if loss_config['blip_use']:
-        generate_prompt = criterion.pipeline.generate_prompt
     
 
     optimizer = torch.optim.Adam(model.parameters(), lr)
@@ -109,7 +119,7 @@ def train(config_path):
         print(f"epoch : {epoch}")
         #dataset.update_condition_set()
         total_loss = 0
-        with tqdm(dataloader) as t:
+        with tqdm(train_dataloader) as t:
             for k, image_idx in enumerate(t):
                 #image to text
                 idxs= image_idx.numpy()
@@ -149,7 +159,7 @@ def train(config_path):
 
                 loss, _g, _p, _ccs, _dcs = criterion(image_dirs=image_dirs,
                                                      real_images=real_images,
-                                                     from_prompt= from_prompt,
+                                                     from_prompts= from_prompt,
                                                      prompts=input_prompts, 
                                                      g_init=pred_ginit,
                                                      origin_alpha=origin_alpha,

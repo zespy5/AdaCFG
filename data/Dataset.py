@@ -6,62 +6,60 @@ from torch.utils.data import Dataset
 from PIL import Image
 from transformers import BlipProcessor, BlipForConditionalGeneration, CLIPModel, CLIPProcessor
 from tqdm import tqdm
-
+from torchvision.transforms import ToTensor
 class DomainChangeDataset(Dataset):
     def __init__(self,
                  data_directory : Union[str, Path],
-                 data_length : int
-                 #conditions : Optional[Union[str, List[str]]] = None,
-                 #device : str = "cuda",
-                 #init_text :str = "a photography of"
+                 latents_path: Union[str, Path],
+                 embedding_path: Union[str, Path],
+                 data_length : int,
+                 conditions : List[str],
+                 conditions_embedding: torch.Tensor
                  ):
         
-        #self.device = device
-        #self.init_text = init_text
-        self.data_directory = Path(data_directory) if isinstance(data_directory, str) else data_directory
-        
-        '''if conditions is None:
-            self.conditions = [""]
-        else:
-            self.conditions = [conditions] if isinstance(conditions,str) else conditions
-        self.num_conditions = len(conditions)
-        
-        self.image_processor = BlipProcessor.from_pretrained("Salesforce/blip-image-captioning-large")
-        self.i2t_model = BlipForConditionalGeneration.from_pretrained("Salesforce/blip-image-captioning-large", 
-                                                                      torch_dtype=torch.float16).to(self.device)
-'''
         self.image_names = sorted([*self.data_directory.glob('*')])[:data_length]
         assert len(self.image_names)!=0, "There is no image files"
-
-        #self.real_image_set = [Image.open(img).convert('RGB') for img in tqdm(self.image_names)]
-        #self.prompt_set = [self.generate_prompt(img) for img in tqdm(self.real_image_set)]
         
-
-        #self.condition_prompt_set = None
-        #self.update_condition_set()
-
-    '''def update_condition_set(self):
-        self.condition_prompt_set = [self.prompt_set[i]+self.conditions[np.random.randint(0, self.num_conditions)]
-                                     for i in range(len(self.image_names))]'''
-    
+        self.conditions = conditions
+        self.condition_length = len(conditions)
+        self.conditions_embedding = conditions_embedding
+        self.data_length = data_length
+        self.data_directory = Path(data_directory) if isinstance(data_directory, str) else data_directory
+        self.latents = torch.load(latents_path, weights_only=False)
+        self.embeddings = torch.load(embedding_path, weights_only=False)
+        
+        self.transform = ToTensor()
+        
     
     def __len__(self):
         return len(self.image_names)
     
     def __getitem__(self, idx):
-        image_idx = torch.tensor(idx, dtype=torch.int16)
-
-        return image_idx
-    
-    '''@torch.no_grad()
-    def generate_prompt(self, images):
         
-        inputs = self.image_processor(images, self.init_text, 
-                                      return_tensors="pt").to(self.device, torch.float16)
-
-        outputs = self.i2t_model.generate(**inputs)
-
-        captions = self.image_processor.decode(outputs[0], skip_special_tokens=True)
-        captions = captions.replace(' at night','').rstrip()
+        condition_number = torch.randint(self.condition_length, (1,))[0]
+        condition = self.conditions[condition_number]
+        image_dir = self.image_names[idx]
+        real_image = Image.open(image_dir).convert('RGB').resize((512,512))
+        real_image_tensor = self.transform(real_image)
         
-        return captions'''
+        image_file_name = image_dir.stem
+        
+        latents = self.latents[image_file_name].unsqueeze(0)
+        
+        embedding_infos = self.embeddings[image_file_name]
+        
+        sd_text_embedding = embedding_infos['sd_text_embeddings'][condition]
+        
+        model_input_embedding = self.conditions_embedding[condition_number].unsqueeze(0)
+        image_embedding = embedding_infos['image_project_embedding']
+        from_clip_embedding = embedding_infos['text_project_embeddings']['origin']
+        to_clip_embedding = embedding_infos['text_project_embeddings'][condition]
+
+        return (condition_number,
+                real_image_tensor,
+                image_embedding,
+                model_input_embedding,
+                latents,
+                sd_text_embedding,
+                from_clip_embedding,
+                to_clip_embedding)
