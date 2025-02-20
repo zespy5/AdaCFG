@@ -8,7 +8,7 @@ from util.guidance_scheduler import GuidanceScheduler
 from pnp import PnPPipeline
 from pathlib import Path
 from torchvision.transforms import Compose, Resize, CenterCrop, Normalize
-from torchvision.transforms import InterpolationMode
+from torchvision.transforms import InterpolationMode,ToPILImage
 from metrics.extractor import VitExtractor
 BICUBIC = InterpolationMode.BICUBIC
 BILINEAR = InterpolationMode.BILINEAR
@@ -22,7 +22,6 @@ class Loss(nn.Module):
                  dino_threshold : float = 0.2,
                  num_condition : int = 3,
                  pnp_injection_rate : float = 0.9,
-                 guidance_schedule_use :bool = True,
                  device :str = 'cuda',
                  dino_loss_use : bool = True,
                  clip_ds_use : bool = True,
@@ -39,7 +38,6 @@ class Loss(nn.Module):
         self.dino_threshold = dino_threshold
         self.num_condition = num_condition
         self.pnp_injection_rate = pnp_injection_rate
-        self.guidance_schedule_use = guidance_schedule_use
         self.dino_loss_use = dino_loss_use
         self.clip_ds_use = clip_ds_use
         
@@ -171,17 +169,16 @@ class Loss(nn.Module):
                 to_clip_embedding,
                 model_input_embedding,
                 image_latents,
-                prompt_embeddings,
-                real_images, 
+                sd_prompt_embedding,
                 origin_alpha:Optional[Union[torch.Tensor,float]]=None,
                 g_init:Optional[torch.Tensor]=None,
                 g_portion:Optional[torch.Tensor]= None,
                 ):
         
         scheduled_guidance = self.guidance_scheduler.get_guidance_scales(g_init)
-        
+
         outputs = self.pipeline(image_latents=image_latents,
-                                prompts_embeddings=prompt_embeddings,
+                                prompts_embeddings=sd_prompt_embedding,
                                 negative_prompt=self.negative_prompt,#todo: negative_prompt embedding
                                 num_condition=self.num_condition,
                                 origin_alpha=origin_alpha,
@@ -205,9 +202,9 @@ class Loss(nn.Module):
 
         #threshold = torch.ones_like(structure_loss)*self.dino_threshold
         #thresholded_structure_loss = torch.max(threshold,structure_loss)
-        thresholded_structure_loss = torch.sqrt((structure_loss - self.dino_threshold)**2)
+        #thresholded_structure_loss = torch.sqrt((structure_loss - self.dino_threshold)**2)
 
-        loss = self.lambda_text*clip_loss + self.lambda_structure*thresholded_structure_loss
+        loss = self.lambda_text*clip_loss + self.lambda_structure*structure_loss
         # todo  : 0.5*g_portion**2
         
         return loss, gen_images, clip_cses, dino_cs.squeeze()

@@ -116,7 +116,7 @@ class PnPPipeline(nn.Module):
             img = (img / 2 + 0.5).clamp(0, 1)
         return img
 
-
+    
     def denoise_step(self, x, t, i):
         batch_size, channels, h, w = x.shape
         
@@ -126,7 +126,6 @@ class PnPPipeline(nn.Module):
             source_latents = torch.cat(source_latents).to(self.device)
         else:
             source_latents = self.image_latents[:,i]
-            breakpoint()
             
         _xs = [x]*(self.num_condition+1)
         latent_model_input = torch.cat([source_latents] + _xs)
@@ -135,7 +134,7 @@ class PnPPipeline(nn.Module):
         register_time(self, t.item())
 
         # compute text embeddings
-        text_embed_input = torch.cat([self.pnp_guidance_embeds, self.negative_text_embeds, self.text_embeds], dim=0)
+        text_embed_input = torch.cat([self.pnp_guidance_embeds, self.negative_text_embeds, self.text_embeds], dim=0).to(self.device)
         # pnp_guidance_embeds [batch, 77, 1024]
         # negative_text_embeds [batch, 77, 1024]
         # text_embeds [batch*num_condition, 77, 1024]
@@ -163,7 +162,6 @@ class PnPPipeline(nn.Module):
         noise_pred = noise_pred_uncond + adaptive_likelihood
         noise_pred = self.origin_alpha*origin_noise + (1-self.origin_alpha)*noise_pred
 
-        
         # compute the denoising step with the reference model
         denoised_latent = self.scheduler.step(noise_pred, t, x)['prev_sample']
         
@@ -174,7 +172,7 @@ class PnPPipeline(nn.Module):
         with torch.autocast(device_type=self.device, dtype=torch.float32):
             for i, t in enumerate(self.scheduler.timesteps):
                 x = self.denoise_step(x, t, i)
-
+            
             decoded_latent = self.decode_latent(x)
         return decoded_latent
     
@@ -224,7 +222,7 @@ class PnPPipeline(nn.Module):
         self.image_latents = image_latents
         self.prompts_embeddings = prompts_embeddings
         self.negative_prompt_embeddings = negative_prompt_embeddings
-        
+
         if self.image_latents is None:
             
             assert image_dirs is not None, "image_dirs must not be None"
@@ -234,9 +232,7 @@ class PnPPipeline(nn.Module):
             # make latent root
             latent_save_root_dir = Path(latents_save_root)
             latent_save_root_dir.mkdir(exist_ok=True)
-            #path list, len= num_batch
-            
-            batch_size = len(image_dirs)
+    
             
             # check latents, create latents
             last_step = self.inversion_timesteps[-1]
@@ -257,7 +253,8 @@ class PnPPipeline(nn.Module):
             #zT = tensor[batch,4,64,64]
         else:
             zT = self.image_latents[:,0]
-
+            
+        batch_size = zT.shape[0]
 
         if self.prompts_embeddings is None:
             #image to text
@@ -276,7 +273,6 @@ class PnPPipeline(nn.Module):
         else:
             self.text_embeds = self.prompts_embeddings
         
-        
         if self.negative_prompt_embeddings is None:
             # text_embeds [batch_size*numcondition, 77, 768]
             #negative prompt
@@ -289,7 +285,6 @@ class PnPPipeline(nn.Module):
         pnp_guidance_embeds : torch.Tensor = self.get_text_embeds("")
         self.pnp_guidance_embeds = pnp_guidance_embeds.repeat(batch_size,1,1)
         
-
         # define origin alpha
         self.origin_alpha = 0 if origin_alpha is None else origin_alpha
         
@@ -302,7 +297,6 @@ class PnPPipeline(nn.Module):
             self.guidance_scales  = _guidance
         else:
             self.guidance_scales = guidance_scales
-            
             
         if guidance_portion is None:
             self.guidance_portion = (torch.ones((batch_size,self.num_condition))/self.num_condition).to(self.device)

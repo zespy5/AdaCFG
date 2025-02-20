@@ -1,5 +1,5 @@
 seed : 1
-device : "cuda:0"
+device : "cuda"
 
 #dataset
 train_data_root : './image_data/train'
@@ -9,8 +9,8 @@ eval_data_root : './image_data/eval'
 eval_latent_data : 'merged_latents_forwards/eval_latents.pt'
 eval_embedding_data : 'merged_latents_forwards/blip_eval_embeddings.pt'
 data_length : 1000
-batch_size : 5
-learning_rate : 0.00005
+batch_size : 6
+learning_rate : 0.0001
 origin_alpha : 0
 nu_init_text : ""
 model_zero_init : False
@@ -25,19 +25,15 @@ model:
 
 loss:
     negative_prompt: 'ugly, blurry, low res, unrealistic, paint'
-    lambda_text : 2.0
-    lambda_structure : 1.0
-    dino_threshold : 0.2
+    lambda_text : 1.0
+    lambda_structure : 0.1
+    dino_threshold : 0.0
     num_condition : 1
     pnp_injection_rate : 0.9
-    guidance_schedule_use : True
     dino_loss_use : True
     clip_ds_use : True
-    gradient : 'increase'
+    gradient : 'constant'
     schedule_method : 'cosine'
-    ##data_root = train_data_root
-    ##device = device
-
 
 
 

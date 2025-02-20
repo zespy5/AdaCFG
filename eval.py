@@ -122,29 +122,16 @@ def eval(model,
 @torch.no_grad()
 def linear_eval(model,
                 criterion,
-                data_root:str,
+                eval_dataloader,
                 conditions,
-                save_image_path:str,
                 epoch,
+                save_image_path:str,
                 device,
-                nu_init_text,
                 origin_alpha,
-                latents_save_root='eval_latents_forward'):
-    data_root = Path(data_root)
-    eval_datas = sorted([*data_root.glob('*')])[:50]
+                ):
     
-    num_instance = len(eval_datas)
-    batch_size = len(conditions)
     total_loss = 0
-    
-    
-    conditioned_prompt_embedds = criterion.prompt_embeds
-    original_image_embedds = criterion.image_clip_embeds
-    
-    domain_prompts = [nu_init_text+conditions[i] for i in range(batch_size)]
-    domain_prompt_embed = conditioned_prompt_embedds(domain_prompts)
-    domain_prompts = [domain_prompts]
-    
+
     save_root = Path(save_image_path)
     save_root.mkdir(exist_ok=True, parents=True)
     save_dir = save_root/f'epoch-{epoch}'
@@ -152,48 +139,62 @@ def linear_eval(model,
     
     
     print('Evaluate')
-    with tqdm(eval_datas) as t:
-        for i, image_path in enumerate(t):
+    with tqdm(eval_dataloader) as t:
+        for i, inputs in enumerate(t):
+            
+            (idx,
+             condition_number,
+             real_image_tensor,
+             image_embedding,
+             model_input_embedding,
+             latents,
+             sd_text_embedding,
+             from_clip_embedding,
+             to_clip_embedding)= inputs
             #image to text
-            save_gen_dir = save_dir/image_path.stem
-            save_gen_dir.mkdir(exist_ok=True)
-            image_dirs = [image_path]
-            real_images = [Image.open(image_path).convert('RGB')]
-            
-            image_dirs = image_dirs*batch_size
-            real_images = real_images*batch_size
-            
-            original_image_emb = original_image_embedds(real_images)
+            idx = idx.numpy()
+            selected_conditions = [conditions[i] for i in condition_number]
+            real_image_tensor=real_image_tensor.to(device)
+            image_embedding=image_embedding.to(device)
+            model_input_embedding = model_input_embedding.to(device)
+            latents = latents.to(device)
+            sd_text_embedding = sd_text_embedding.to(device)
+            from_clip_embedding=from_clip_embedding.to(device)
+            to_clip_embedding = to_clip_embedding.to(device)
 
-            prompt_emb = torch.cat([original_image_emb,
-                                    domain_prompt_embed], dim=1)
-            prompt_emb = prompt_emb.to(device)
+            model_input = torch.cat([image_embedding,
+                                     model_input_embedding], dim=1)
 
-            pred_ginit = model(prompt_emb)
-            pred_ginit = pred_ginit.to(device)
-            
-            loss, gen_images, prompts_c, _ccs, _dcs = criterion(image_dirs=image_dirs,
-                                                    real_images=real_images,
-                                                    prompts=domain_prompts, 
-                                                    g_init=pred_ginit,
-                                                    origin_alpha=origin_alpha,
-                                                    latents_save_root= latents_save_root)
+            pred_ginit = model(model_input)
+
+            loss, gen_images, _ccs, _dcs = criterion(real_image_tensor=real_image_tensor,
+                                                     clip_real_image_embedding=image_embedding,
+                                                     from_clip_embedding=from_clip_embedding,
+                                                     to_clip_embedding=to_clip_embedding,
+                                                     model_input_embedding=model_input_embedding,
+                                                     image_latents=latents,
+                                                     sd_prompt_embedding=sd_text_embedding,
+                                                     g_init=pred_ginit,
+                                                     origin_alpha=origin_alpha,
+                                                     g_portion=None)
             t.set_postfix(loss=loss.item())
             
             preds = pred_ginit.squeeze().detach().cpu().numpy()
             ccs = _ccs[0].detach().cpu().numpy()
             struc_dcs = _dcs.detach().cpu().numpy()
-            save_origin_img = save_gen_dir/f'real_image.png'
-            real_images[0].save(save_origin_img)
+            
+            real_imgs = [T.ToPILImage()(latent) for latent in real_image_tensor]
             edited_imgs = [T.ToPILImage()(latent) for latent in gen_images]
             for a in range(len(edited_imgs)):
                 str_s_ccs = f'{ccs.item(a):.2f}'.replace('.','_')
                 str_dcs = f'{struc_dcs.item(a):.2f}'.replace('.','_')
-                s = save_gen_dir/f'{prompts_c[0][a]}-{int(preds.item(a))}-{str_s_ccs}-{str_dcs}.png'
+                s = save_dir/f'{idx.item(a):04}-{selected_conditions[a]}-{int(preds.item(a))}-{str_s_ccs}-{str_dcs}.png'
                 edited_imgs[a].save(s)
+                save_origin_img = save_dir/f'{idx.item(a):04}-real_image.png'
+                real_imgs[a].save(save_origin_img)
 
             total_loss += loss.item()
-        epoch_loss = total_loss/(num_instance)
+        epoch_loss = total_loss/len(eval_dataloader)
         
     return epoch_loss
         

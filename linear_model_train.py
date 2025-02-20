@@ -30,7 +30,7 @@ def train(config_path):
     train_data_root = Path(config['train_data_root'])
     train_latent_data = config['train_latent_data']
     train_embedding_data = config['train_embedding_data']
-    
+
     eval_data_root = config['eval_data_root']
     eval_latent_data= config['eval_latent_data']
     eval_embedding_data = config['eval_embedding_data']
@@ -50,7 +50,7 @@ def train(config_path):
     lambda_s = loss_config['lambda_structure']
     dino_thres = loss_config['dino_threshold']
     dino_loss_use = loss_config['dino_loss_use']
-    guid_sche_use = loss_config['guidance_schedule_use']
+    guid_sche = loss_config['gradient']
     clip_ds_use = loss_config['clip_ds_use']
     
     model_class = 'zero_init' if guid_model else 'half init'
@@ -60,8 +60,8 @@ def train(config_path):
     timestamp = get_timestamp()
     
     name = f'''work-{timestamp}-linear increase {model_class} pnp {pnp_rate} alpha {origin_alpha}
-               lambda_t {lambda_t}, lambda_s {lambda_s}, dino thres {dino_thres} sqrt, s_loss {structure_loss}, t_loss {clip_loss}
-               init {init_g}, div {divide_out} lr {lr}, s_text {struct_text}, guidance_schedule_use {guid_sche_use}'''
+               lambda_t {lambda_t}, lambda_s {lambda_s}, dino thres {dino_thres}, s_loss {structure_loss}, t_loss {clip_loss}
+               init {init_g}, div {divide_out} lr {lr}, s_text {struct_text}, guidance_schedule {guid_sche}'''
         ############ WANDB INIT #############
     print("--------------- Wandb SETTING ---------------")
     dotenv.load_dotenv()
@@ -77,17 +77,17 @@ def train(config_path):
     seed_everything(seed)
     
     domains = [' on a summer day',
-               ' on a spring day',
-               ' on a winter day',
-               ' on a autumn day',
-               ' on a rainy day',
-               ' on a foggy day',
-               ' on a snowy day',
-               ' on a sunny day',
-               ' on a cloudy day',
-               ' at night time',
-               ' at sunset',
-               ' at daytime']
+                ' on a spring day',
+                ' on a winter day',
+                ' on an autumn day',
+                ' on a rainy day',
+                ' on a foggy day',
+                ' on a snowy day',
+                ' on a sunny day',
+                ' on a cloudy day',
+                ' at night time',
+                ' at sunset',
+                ' at daytime']
     
     criterion = Loss(device=device,
                      **loss_config).to(device)
@@ -102,6 +102,14 @@ def train(config_path):
                                         conditions_embedding=conditioned_prompt_embedds)
     train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
     
+    eval_dataset = DomainChangeDataset(data_directory=eval_data_root,
+                                        latents_path=eval_latent_data,
+                                        embedding_path=eval_embedding_data,
+                                        data_length=100,
+                                        conditions=domains,
+                                        conditions_embedding=conditioned_prompt_embedds)
+    eval_dataloader = DataLoader(eval_dataset, batch_size=10)
+    
     
     # todo: eval data set
     guidancemodel = GuidanceModel2 if guid_model else GuidanceModel
@@ -111,59 +119,51 @@ def train(config_path):
 
     optimizer = torch.optim.Adam(model.parameters(), lr)
     optimizer_scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer=optimizer,
-                                                            lr_lambda=lambda epoch: 0.99*epoch)
+                                                            lr_lambda=lambda epoch: 0.95*epoch)
     min_val_loss = 1000
-    
 
-    for epoch in range(50):
+    for epoch in range(100):
         print(f"epoch : {epoch}")
-        #dataset.update_condition_set()
         total_loss = 0
         with tqdm(train_dataloader) as t:
-            for k, image_idx in enumerate(t):
+            for i, inputs in enumerate(t):
+                (idx,
+                 condition_number,
+                 real_image_tensor,
+                 image_embedding,
+                 model_input_embedding,
+                 latents,
+                 sd_text_embedding,
+                 from_clip_embedding,
+                 to_clip_embedding)= inputs
                 #image to text
-                idxs= image_idx.numpy()
-                image_dirs = [train_data_root/f'{idx:04}.jpg' for idx in idxs]
-                real_images = [Image.open(img).convert('RGB') for img in image_dirs]
                 
-                data_len = len(image_dirs)
-                selected_prompts = [domains[randint(0,12)] for _ in range(data_len)]
-                
-                if blip_use:
-                    assert nu_init_text == "", "nu_init_text must be null text"
-                    original_prompts = generate_prompt(real_images)
-                    blip_domain_prompts = [original_prompts[i]+selected_prompts[i] for i in range(data_len)]
-                    domain_prompt_embed = conditioned_prompt_embedds(blip_domain_prompts)
-                    domain_prompts = selected_prompts
-                    from_prompt = original_prompts
-                elif nu_init_text != "":
-                    domain_prompts = [nu_init_text+selected_prompts[i] for i in range(data_len)]
-                    domain_prompt_embed = conditioned_prompt_embedds(domain_prompts)
-                    from_prompt = [nu_init_text for _ in range(data_len)]
-                else:
-                    domain_prompts = selected_prompts
-                    domain_prompt_embed = conditioned_prompt_embedds(selected_prompts)
-                    from_prompt = ["" for _ in range(data_len)]
-                
-                input_prompts = [domain_prompts]
+                selected_conditions = [domains[i] for i in condition_number]
+                real_image_tensor=real_image_tensor.to(device)
+                image_embedding=image_embedding.to(device)
+                model_input_embedding = model_input_embedding.to(device)
+                latents = latents.to(device)
+                sd_text_embedding = sd_text_embedding.to(device)
+                from_clip_embedding=from_clip_embedding.to(device)
+                to_clip_embedding = to_clip_embedding.to(device)
 
-                #text clip embedding : model inputs
-                original_image_emb = original_image_embedds(real_images)
-                ##conditioned_prompt_emb = conditioned_prompt_embedds(conditioned_prompts)
-                prompt_emb = torch.cat([original_image_emb,
-                                        domain_prompt_embed], dim=1)
 
-                prompt_emb.to(device)
+                model_input = torch.cat([image_embedding,
+                                         model_input_embedding], dim=1)
 
-                pred_ginit = model(prompt_emb)
 
-                loss, _g, _p, _ccs, _dcs = criterion(image_dirs=image_dirs,
-                                                     real_images=real_images,
-                                                     from_prompts= from_prompt,
-                                                     prompts=input_prompts, 
-                                                     g_init=pred_ginit,
-                                                     origin_alpha=origin_alpha,
-                                                     g_portion=None)
+                pred_ginit = model(model_input)
+
+                loss, _g, _ccs, _dcs = criterion(real_image_tensor=real_image_tensor,
+                                                 clip_real_image_embedding=image_embedding,
+                                                 from_clip_embedding=from_clip_embedding,
+                                                 to_clip_embedding=to_clip_embedding,
+                                                 model_input_embedding=model_input_embedding,
+                                                 image_latents=latents,
+                                                 sd_prompt_embedding=sd_text_embedding,
+                                                 g_init=pred_ginit,
+                                                 origin_alpha=origin_alpha,
+                                                 g_portion=None)
                 t.set_postfix(loss=loss.item())
 
 
@@ -177,14 +177,14 @@ def train(config_path):
 
                 for ps in range(len(preds)):
                     log_conditions_values ={}
-                    log_conditions_values['g_init'+ selected_prompts[ps]] = preds.item(ps)
-                    log_conditions_values['clip cosin similarity'+ selected_prompts[ps]] = ccs.item(ps)
+                    log_conditions_values['g_init'+ selected_conditions[ps]] = preds.item(ps)
+                    log_conditions_values['clip cosin similarity'+ selected_conditions[ps]] = ccs.item(ps)
                     log_conditions_values['dino cosin similarity'] = struc_dcs.item(ps)
                     wandb.log(log_conditions_values)
 
                 wandb.log({"step loss" : loss})
                 total_loss += loss.item()
-            epoch_loss = total_loss/len(dataloader)
+            epoch_loss = total_loss/len(train_dataloader)
             wandb.log(
                 {   "epoch":epoch+1,
                     "loss": epoch_loss,
@@ -195,12 +195,11 @@ def train(config_path):
         if epoch%2==0:
             valid_epoch_loss = linear_eval(model= model,
                                            criterion=criterion,
-                                           data_root=eval_data_root,
+                                           eval_dataloader=eval_dataloader,
                                            conditions=domains,
-                                           save_image_path=f'Evalutate_images_results/{timestamp}',
                                            epoch=epoch,
+                                           save_image_path=f'Evalutate_images_results/{timestamp}',
                                            device=device,
-                                           nu_init_text=nu_init_text,
                                            origin_alpha=origin_alpha
                                            )
             wandb.log(
