@@ -25,6 +25,7 @@ class Loss(nn.Module):
                  device :str = 'cuda',
                  dino_loss_use : bool = True,
                  clip_ds_use : bool = True,
+                 negative_clip_use : bool = True,
                  gradient : Literal['increase', 'decrease', 'constant'] = 'increase',
                  schedule_method : Literal['cosine', 'linear'] = 'cosine',
                  **kwargs
@@ -40,6 +41,7 @@ class Loss(nn.Module):
         self.pnp_injection_rate = pnp_injection_rate
         self.dino_loss_use = dino_loss_use
         self.clip_ds_use = clip_ds_use
+        self.negative_clip_use = negative_clip_use
         
         
         self.pipeline = PnPPipeline(device=self.device,
@@ -179,7 +181,7 @@ class Loss(nn.Module):
 
         outputs = self.pipeline(image_latents=image_latents,
                                 prompts_embeddings=sd_prompt_embedding,
-                                negative_prompt=self.negative_prompt,#todo: negative_prompt embedding
+                                negative_prompt=self.negative_prompt, #todo: negative_prompt embedding
                                 num_condition=self.num_condition,
                                 origin_alpha=origin_alpha,
                                 guidance_scales=scheduled_guidance,
@@ -187,25 +189,36 @@ class Loss(nn.Module):
                                 )
         
         gen_images = outputs.images
+        batch_size = gen_images.shape[0]
 
         clip_cses = []
         
+
         if self.clip_ds_use:
             clip_loss, clip_cs = self.clip_ds_loss(clip_real_image_embedding, gen_images, from_clip_embedding, to_clip_embedding)
             clip_cses.append(clip_cs.squeeze())
         else:
             clip_loss, clip_cs = self.clip_loss(gen_images, model_input_embedding)
             clip_cses.append(clip_cs.squeeze())
-
-
+        
+        if self.negative_clip_use:
+            negative_clip_embedding = self.prompt_embeds(self.negative_prompt)
+            negative_clip_embedding = negative_clip_embedding.repeat(batch_size,1)
+            negative_clip_loss, _ = self.clip_loss(gen_images, negative_clip_embedding)
+            negative_clip_loss = 1-negative_clip_loss
+            clip_loss = clip_loss+negative_clip_loss
+            
+            
         structure_loss, dino_cs = self.structure_loss_func(real_image_tensor, gen_images)
 
-        #threshold = torch.ones_like(structure_loss)*self.dino_threshold
-        #thresholded_structure_loss = torch.max(threshold,structure_loss)
-        #thresholded_structure_loss = torch.sqrt((structure_loss - self.dino_threshold)**2)
-
+        if self.dino_threshold > 0:
+            threshold = torch.ones_like(structure_loss)*self.dino_threshold
+            structure_loss = torch.max(threshold,structure_loss)
+            #structure_loss = torch.sqrt((structure_loss - self.dino_threshold)**2)
+        
+        
         loss = self.lambda_text*clip_loss + self.lambda_structure*structure_loss
-        # todo  : 0.5*g_portion**2
+
         
         return loss, gen_images, clip_cses, dino_cs.squeeze()
             

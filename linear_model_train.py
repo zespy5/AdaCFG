@@ -52,6 +52,7 @@ def train(config_path):
     dino_loss_use = loss_config['dino_loss_use']
     guid_sche = loss_config['gradient']
     clip_ds_use = loss_config['clip_ds_use']
+    negative_clip_use = loss_config['negative_clip_use']
     
     model_class = 'zero_init' if guid_model else 'half init'
     struct_text = train_embedding_data.split('/')[-1].split('_')[0]
@@ -60,9 +61,12 @@ def train(config_path):
     timestamp = get_timestamp()
     
     name = f'''work-{timestamp}-linear increase {model_class} pnp {pnp_rate} alpha {origin_alpha}
-               lambda_t {lambda_t}, lambda_s {lambda_s}, dino thres {dino_thres}, s_loss {structure_loss}, t_loss {clip_loss}
-               init {init_g}, div {divide_out} lr {lr}, s_text {struct_text}, guidance_schedule {guid_sche}'''
-        ############ WANDB INIT #############
+               lambda_t {lambda_t}, lambda_s {lambda_s}, dino thres {dino_thres}, s_loss {structure_loss}, 
+               t_loss {clip_loss}, init {init_g}, div {divide_out} lr {lr}, s_text {struct_text}, 
+               negative_clip {negative_clip_use}, guidance_schedule {guid_sche}'''
+    
+    
+    ############ WANDB INIT #############
     print("--------------- Wandb SETTING ---------------")
     dotenv.load_dotenv()
     WANDB_API_KEY = os.environ.get("WANDB_API_KEY")
@@ -123,7 +127,7 @@ def train(config_path):
     min_val_loss = 1000
 
     for epoch in range(100):
-        print(f"epoch : {epoch}")
+        print(f"work-{timestamp}, epoch : {epoch}")
         total_loss = 0
         with tqdm(train_dataloader) as t:
             for i, inputs in enumerate(t):
