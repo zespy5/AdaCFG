@@ -220,7 +220,8 @@ def train(config_path):
                                            epoch=epoch,
                                            save_image_path=f'Evalutate_images_results/{timestamp}',
                                            device=device,
-                                           origin_alpha=origin_alpha
+                                           origin_alpha=origin_alpha,
+                                           model_class=model_class
                                            )
             wandb.log(
                     {   "epoch":epoch+1,
