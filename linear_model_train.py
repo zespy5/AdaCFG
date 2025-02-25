@@ -37,12 +37,16 @@ def train(config_path):
     
     origin_alpha = config['origin_alpha']
     lr = config['learning_rate']
-    nu_init_text = config['nu_init_text']
-    guid_model = config['model_zero_init']
+    model_class = config['attention_model']
+    zero_init_model = config['model_zero_init']
     
     model_config = config['model']
     init_g = model_config['init_g']
     divide_out = model_config['divide_out']
+    num_guidance_info = model_config['num_guidance_info']
+    hidden_dim = model_config['hidden_dim']
+    num_layers = model_config['num_layers']
+    heads = model_config['heads']
     
     loss_config = config['loss']
     pnp_rate = loss_config['pnp_injection_rate']
@@ -54,13 +58,14 @@ def train(config_path):
     clip_ds_use = loss_config['clip_ds_use']
     negative_clip_use = loss_config['negative_clip_use']
     
-    model_class = 'zero_init' if guid_model else 'half init'
+    model_name = 'Attention' if model_class else 'Linear'
+    model_class = 'zero_init' if zero_init_model else 'half init'
     struct_text = train_embedding_data.split('/')[-1].split('_')[0]
     structure_loss = "dino CosinSim" if dino_loss_use else "keys_ssim" 
     clip_loss = "clip_ds" if clip_ds_use else "clip"
     timestamp = get_timestamp()
     
-    name = f'''work-{timestamp}-linear increase {model_class} pnp {pnp_rate} alpha {origin_alpha}
+    name = f'''work-{timestamp}-{model_name} {num_layers}, in size {hidden_dim}, {model_class} pnp {pnp_rate} alpha {origin_alpha}
                lambda_t {lambda_t}, lambda_s {lambda_s}, dino thres {dino_thres}, s_loss {structure_loss}, 
                t_loss {clip_loss}, init {init_g}, div {divide_out} lr {lr}, s_text {struct_text}, 
                negative_clip {negative_clip_use}, guidance_schedule {guid_sche}'''
@@ -77,7 +82,7 @@ def train(config_path):
         name=name,
         mode=os.environ.get("WANDB_MODE"),
     )
-    
+    #wandb.log(config)
     seed_everything(seed)
     
     domains = [' on a summer day',
@@ -116,7 +121,12 @@ def train(config_path):
     
     
     # todo: eval data set
-    guidancemodel = GuidanceModel2 if guid_model else GuidanceModel
+    if model_class:
+        guidancemodel = AttentionModel2 if zero_init_model else AttentionModel
+    else:
+        guidancemodel = GuidanceModel2 if zero_init_model else GuidanceModel
+        model_config['hidden_dim'] = model_config['hidden_dim']*2
+        
     model = guidancemodel(**model_config).to(device)
 
     
@@ -152,8 +162,14 @@ def train(config_path):
                 to_clip_embedding = to_clip_embedding.to(device)
 
 
-                model_input = torch.cat([image_embedding,
-                                         model_input_embedding], dim=1)
+                if model_class:
+                    model_input = torch.cat([image_embedding,
+                                             from_clip_embedding,
+                                             to_clip_embedding], dim=1).view(len(idx), 3, -1)
+                else:
+                    model_input = torch.cat([from_clip_embedding,
+                                            to_clip_embedding], dim=1)
+
 
 
                 pred_ginit = model(model_input)
@@ -214,8 +230,9 @@ def train(config_path):
 
             if min_val_loss > valid_epoch_loss:
                 min_val_loss = valid_epoch_loss
-                torch.save(model.state_dict(), f"./ckpts/{timestamp}_linear_model.pt")
+                torch.save(model.state_dict(), f"./ckpts/{timestamp}_{model_name}_model.pt")
 
+    torch.save(model.state_dict(), f"./ckpts/{timestamp}_{model_name}_model_last.pt")
 
 
 if __name__ == '__main__':

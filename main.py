@@ -6,16 +6,19 @@ from util.guidance_scheduler import GuidanceScheduler
 import torch
 from util.loss import Loss
 from tqdm import tqdm
+from torch.nn.functional import cosine_similarity
 
 def main():    
     loss = Loss(device='cuda',
                    blip_use=True)
     pipe = loss.pipeline
 
-    blip_prompt = pipe.generate_prompt
     sd_clip_embedding = pipe.get_text_embeds
     large_clip_image_embedding = loss.image_clip_embeds
     large_clip_text_embedding = loss.prompt_embeds
+    
+    origin_prompt = 'a photograph of a street'
+    
     conditions = [' on a summer day',
                 ' on a spring day',
                 ' on a winter day',
@@ -28,6 +31,9 @@ def main():
                 ' at night time',
                 ' at sunset',
                 ' at daytime']
+    
+    conditioned_prompt = [origin_prompt + con for con in conditions]
+    conditioned_embeddings = large_clip_text_embedding(conditioned_prompt)
 
     image_dir = Path('image_data')
     train_dir = image_dir/'train'
@@ -48,18 +54,21 @@ def main():
             image = Image.open(img)
             image_project_embedding = large_clip_image_embedding(image)
             image_data['image_project_embedding'] = image_project_embedding 
+            image_project_embedding = image_project_embedding.repeat(len(conditions), 1)
+            
+            cos_sim = cosine_similarity(image_project_embedding, conditioned_embeddings,dim=1)
+            max_idx = torch.argmax(cos_sim)
 
-            #origin_prompt = blip_prompt([image])[0]
-            origin_prompt = 'a photograph'
-            image_data['origin_prompt'] = origin_prompt
-            origin_text_project_embedding = large_clip_text_embedding(origin_prompt)
-            origin_sd_text_embedding = sd_clip_embedding(origin_prompt)
+            from_prompt = conditioned_prompt[max_idx]
+            image_data['from_prompt'] = from_prompt
+            origin_text_project_embedding = large_clip_text_embedding(from_prompt)
 
-            text_project_embeddings = {'origin' : origin_text_project_embedding}
-            sd_text_embeddings = {'origin' : origin_sd_text_embedding}
+            text_project_embeddings = {'from_embedding' : origin_text_project_embedding}
+            sd_text_embeddings = {}
 
-            for con in conditions:
-                condition_prompt = origin_prompt + con
+            for c in range(len(conditions)):
+                con = conditions[c]
+                condition_prompt = conditioned_prompt[c]
                 
                 condition_text_project_embedding = large_clip_text_embedding(condition_prompt)
                 text_project_embeddings[con] = condition_text_project_embedding
@@ -72,12 +81,12 @@ def main():
 
             
             config[file_name] = image_data
-        
+
         return config
 
     save_root = Path('merged_latents_forwards')
-    train_save = save_root/'photograph_train_embeddings.pt'
-    eval_save = save_root/'photograph_eval_embeddings.pt'
+    train_save = save_root/'selected_from_street_train_embeddings.pt'
+    eval_save = save_root/'selected_from_street_eval_embeddings.pt'
     
     train_data = make_config(train_images)
     eval_data = make_config(eval_images)

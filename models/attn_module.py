@@ -61,4 +61,24 @@ class FeedForward(nn.Module):
         output = self.layer_norm(hidden_states+residual)
         
         return output
- 
+
+
+class AttnBlock(nn.Module):
+    
+    def __init__(self,
+                 hidden_dim : int,
+                 heads : int,
+                 ):
+        super().__init__()
+        self.hidden_dim = hidden_dim
+        self.heads = heads
+        
+        self.attn = Attention(self.hidden_dim, self.heads)
+        self.ff = FeedForward(self.hidden_dim)
+        
+    def forward(self, hidden_states):
+        
+        hidden_states = self.attn(hidden_states)
+        hidden_states = self.ff(hidden_states)
+        
+        return hidden_states

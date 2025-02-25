@@ -52,7 +52,7 @@ class DomainChangeDataset(Dataset):
         
         model_input_embedding = self.conditions_embedding[condition_number].squeeze()
         image_embedding = embedding_infos['image_project_embedding'].squeeze()
-        from_clip_embedding = embedding_infos['text_project_embeddings']['origin'].squeeze()
+        from_clip_embedding = embedding_infos['text_project_embeddings']['from_embedding'].squeeze()
         to_clip_embedding = embedding_infos['text_project_embeddings'][condition].squeeze()
         idx = torch.tensor(idx, dtype=torch.int16)
         return (idx,

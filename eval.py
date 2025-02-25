@@ -162,9 +162,11 @@ def linear_eval(model,
             from_clip_embedding=from_clip_embedding.to(device)
             to_clip_embedding = to_clip_embedding.to(device)
 
-            model_input = torch.cat([image_embedding,
-                                     model_input_embedding], dim=1)
-
+            #model_input = torch.cat([image_embedding,
+            #                         model_input_embedding], dim=1)
+            #model_input = torch.cat([from_clip_embedding,
+            #                         to_clip_embedding], dim=1)
+            model_input = from_clip_embedding*to_clip_embedding
             pred_ginit = model(model_input)
 
             loss, gen_images, _ccs, _dcs = criterion(real_image_tensor=real_image_tensor,
