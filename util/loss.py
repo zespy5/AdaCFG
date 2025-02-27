@@ -60,17 +60,12 @@ class Loss(nn.Module):
         
         if self.dino_loss_use:
             self.structure_transform = self.dino_transform()
-            self.dino_model = AutoModel.from_pretrained('facebook/dinov2-large').to(self.device)
-            self.dino_processor = AutoImageProcessor.from_pretrained('facebook/dinov2-large')
+            self.dino_model = AutoModel.from_pretrained('facebook/dinov2-small').to(self.device)
+            self.dino_processor = AutoImageProcessor.from_pretrained('facebook/dinov2-small')
             for p in self.dino_model.parameters():
                 p.requires_grad=False 
-        else :
-            self.structure_transform = self.dino_transform(224,BILINEAR,480)
-            self.vit_extractor = VitExtractor('dino_vitb16', self.device)
-            for p in self.vit_extractor.model.parameters():
-                p.requires_grad=False
         
-        self.structure_loss_func = self.dino_loss if self.dino_loss_use else self.keys_self_sim_score
+        self.structure_loss_func = self.dino_loss if self.dino_loss_use else self.clip_vision_score
    
     @torch.no_grad()
     def prompt_embeds(self, prompts):
@@ -146,18 +141,20 @@ class Loss(nn.Module):
         loss = loss.view(-1).mean()
         return loss, dino_cs
     
-    def keys_self_sim_score(self, real, gen):
+    def clip_vision_score(self, real, gen):
         batch_size = len(gen)
         
         with torch.no_grad():
-            real_inputs = self.structure_transform(real).to(self.device)
-            real_outputs = self.vit_extractor.get_keys_self_sim_from_input(real_inputs, 11)
+            real_inputs = self.clip_transform()(real).to(self.device)
+            real_outputs = self.clip_model.vision_model(real_inputs)[0]
+
             real_t = real_outputs.view(batch_size,-1)
             
-        gen_inputs = self.structure_transform(gen).to(self.device)
-        gen_outputs = self.vit_extractor.get_keys_self_sim_from_input(gen_inputs, 11)
+        gen_inputs = self.clip_transform()(gen).to(self.device)
+        gen_outputs = self.clip_model.vision_model(gen_inputs)[0]
+
         gen_t = gen_outputs.view(batch_size,-1)
-           
+
         ksss_cs = F.cosine_similarity(real_t, gen_t, dim=1)
         loss = (1-ksss_cs)
         loss = loss.view(-1).mean()

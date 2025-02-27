@@ -161,8 +161,12 @@ class AttentionModel(nn.Module):
 
         for block in self.attnblocks:
             hidden_states = block(hidden_states)
-        cls_token = hidden_states[:,0]
-        output = self.W(cls_token)
+        #cls_token = hidden_states[:,0]
+        #output = self.W(cls_token)
+        output = self.W(hidden_states)
+
+        output = torch.mean(output, dim=1)
+        
         output = output*self.divide_out
         
         g_init = torch.sigmoid(output/self.init_g)*self.init_g +1

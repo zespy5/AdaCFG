@@ -167,8 +167,8 @@ def train(config_path):
                                              from_clip_embedding,
                                              to_clip_embedding], dim=1).view(len(idx), 3, -1)
                 else:
-                    model_input = torch.cat([from_clip_embedding,
-                                            to_clip_embedding], dim=1)
+                    model_input = torch.cat([image_embedding,
+                                             model_input_embedding], dim=1)
 
 
 
