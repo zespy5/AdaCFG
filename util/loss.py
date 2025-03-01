@@ -60,8 +60,8 @@ class Loss(nn.Module):
         
         if self.dino_loss_use:
             self.structure_transform = self.dino_transform()
-            self.dino_model = AutoModel.from_pretrained('facebook/dinov2-small').to(self.device)
-            self.dino_processor = AutoImageProcessor.from_pretrained('facebook/dinov2-small')
+            self.dino_model = AutoModel.from_pretrained('facebook/dinov2-large').to(self.device)
+            self.dino_processor = AutoImageProcessor.from_pretrained('facebook/dinov2-large')
             for p in self.dino_model.parameters():
                 p.requires_grad=False 
         
@@ -139,6 +139,7 @@ class Loss(nn.Module):
         dino_cs = F.cosine_similarity(real_outputs, gen_outputs, dim=1)
         loss = (1-dino_cs)
         loss = loss.view(-1).mean()
+        
         return loss, dino_cs
     
     def clip_vision_score(self, real, gen):
@@ -207,7 +208,7 @@ class Loss(nn.Module):
             
             
         structure_loss, dino_cs = self.structure_loss_func(real_image_tensor, gen_images)
-
+        
         if self.dino_threshold > 0:
             #threshold = torch.ones_like(structure_loss)*self.dino_threshold
             #structure_loss = torch.max(threshold,structure_loss)

@@ -149,13 +149,8 @@ class AttentionModel(nn.Module):
         
         direction = to_token - from_token
         
-        img_token = img_token/torch.norm(img_token, dim=1, keepdim=True)
-        direction = direction/torch.norm(direction, dim=1, keepdim=True)
-        
         output = img_token*direction
-
         output = self.W(output)
-        
         output = output*self.divide_out
         
         g_init = torch.sigmoid(output/self.init_g)*self.init_g +1

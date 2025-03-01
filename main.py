@@ -8,6 +8,7 @@ import re
 from tqdm import tqdm
 from PIL import Image
 import numpy
+from torch.nn.functional import cosine_similarity
 
 clip_model = CLIPModel.from_pretrained("openai/clip-vit-large-patch14").to('cuda')
 clip_processor = CLIPProcessor.from_pretrained("openai/clip-vit-large-patch14")
@@ -75,7 +76,12 @@ def main(model, model_number):
         
         image_embedding = image_clip_embeds(image).repeat(len(conditions),1)
         
-        model_input = torch.cat([image_embedding, model_text_input], dim=1)
+        cos_sim = cosine_similarity(image_embedding, model_text_input, dim=1)
+        max_idx = torch.argmax(cos_sim)
+        
+        from_text_emb = model_text_input[max_idx].unsqueeze(0).repeat(len(conditions),1)
+        
+        model_input = torch.cat([from_text_emb, model_text_input], dim=1)
         guidance_value = model(model_input)
         guidance = guidance_scheduler.get_guidance_scales(guidance_value)
         
@@ -117,6 +123,8 @@ def main2(model, model_number):
     weather = conditions[:9]
     time = conditions[9:]
     
+    weather_embedding = prompt_embeds(weather)
+    time_embedding = prompt_embeds(time)
 
     save_root = Path('check_valid')
     save_root.mkdir(exist_ok=True)
@@ -147,10 +155,23 @@ def main2(model, model_number):
             save_origin_image = save_time/'origin.png'
             image = Image.open(img_dir)
             image.save(save_origin_image)
+            image_embedding=image_clip_embeds(image)
+            timecheck_image_embedding = image_embedding.repeat(len(time),1)
+            weathercheck_image_embedding = image_embedding.repeat(len(weather),1)
             
-            image_embedding = image_clip_embeds(image).repeat(len(con_for_emb),1)
+            weather_cos_sim = cosine_similarity(weather_embedding, weathercheck_image_embedding, dim=1)
+            time_cos_sim = cosine_similarity(time_embedding, timecheck_image_embedding, dim =1)
             
-            model_input = torch.cat([image_embedding, model_text_input], dim=1)
+            time_max_idx = torch.argmax(time_cos_sim)
+            weather_max_idx = torch.argmax(weather_cos_sim)
+            
+            time_from_emb = time_embedding[time_max_idx].unsqueeze(0).repeat(len(weather),1)
+            weather_from_emb = weather_embedding[weather_max_idx].unsqueeze(0).repeat(len(weather),1)
+            
+            from_input = torch.cat([time_from_emb, weather_from_emb])
+            
+            model_input = torch.cat([from_input, model_text_input], dim=1)
+
             guidance_value = model(model_input)
             time_g, weather_g = guidance_value.chunk(2)
             total_g = time_g+weather_g
@@ -185,15 +206,15 @@ def main2(model, model_number):
         
     
 if __name__ == '__main__':
-    model_path = Path('ckpts/0222154441_linear_model.pt')
+    model_path = Path('ckpts/0225114739_linear_model.pt')
 
     time = model_path.stem.split('_')[0]
     model = GuidanceModel(init_g=50.0,
                           divide_out=0.2,
                           hidden_dim=768*2,
-                          num_layers=5).to('cuda')
+                          num_layers=6).to('cuda')
     model.load_state_dict(torch.load(model_path))
     model.eval()
     
-    main2(model,time)
+    #main2(model,time)
     main(model, time)
