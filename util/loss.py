@@ -209,9 +209,9 @@ class Loss(nn.Module):
         structure_loss, dino_cs = self.structure_loss_func(real_image_tensor, gen_images)
 
         if self.dino_threshold > 0:
-            threshold = torch.ones_like(structure_loss)*self.dino_threshold
-            structure_loss = torch.max(threshold,structure_loss)
-            #structure_loss = torch.sqrt((structure_loss - self.dino_threshold)**2)
+            #threshold = torch.ones_like(structure_loss)*self.dino_threshold
+            #structure_loss = torch.max(threshold,structure_loss)
+            structure_loss = torch.sqrt((structure_loss - self.dino_threshold)**2)
         
         
         loss = self.lambda_text*clip_loss + self.lambda_structure*structure_loss

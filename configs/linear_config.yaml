@@ -14,27 +14,27 @@ learning_rate : 0.0001
 origin_alpha : 0 
 nu_init_text : ""
 model_zero_init : False
-attention_model : True
+attention_model : False
 model:
     init_g : 50.0
     divide_out : 0.2
     num_guidance_info : 1
     hidden_dim : 768
-    num_layers : 3
+    num_layers : 5
     hidden_act : "gelu"
     heads : 8
 
 loss:
-    negative_prompt: 'ugly, blurry, low res, unrealistic, paint'
+    negative_prompt: 'ugly, blurry, low resolution, unrealistic, paint, distortion'
     lambda_text : 1.0
-    lambda_structure : 0.1
-    dino_threshold : 0.0
+    lambda_structure : 0.2
+    dino_threshold : 0.3
     num_condition : 1
     pnp_injection_rate : 0.9
-    dino_loss_use : False
+    dino_loss_use : True
     clip_ds_use : True
     negative_clip_use : True
-    gradient : 'constant'
+    gradient : 'decrease'
     schedule_method : 'cosine'
 
 

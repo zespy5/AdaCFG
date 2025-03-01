@@ -36,35 +36,26 @@ class GuidanceModel(nn.Module):
             self.MLP_modules.append(nn.Linear(self.in_size, self.in_size))
             self.MLP_modules.append(self.activate)
             
-        self.MLP_modules.append(nn.BatchNorm1d(self.in_size))
+        self.MLP_modules.append(nn.LayerNorm(self.in_size))
         for _ in range(self.num_mlp_layers):
             self.MLP_modules.append(nn.Linear(self.in_size, self.in_size // 2))
             self.MLP_modules.append(self.activate)
             self.in_size = self.in_size // 2
 
         self.MLP = nn.Sequential(*self.MLP_modules)
-        self.batchnorm = nn.BatchNorm1d(self.in_size)
+        self.layernorm = nn.LayerNorm(self.in_size)
         self.out = nn.Linear(self.in_size, self.num_guidance_info)
         
     def forward(self, x):
 
         out = self.MLP(x)
-        out = self.batchnorm(out)
+        out = self.layernorm(out)
         out = self.out(out)
         
-        if self.num_guidance_info==1:
-            out *=self.divide_out
-            out = torch.sigmoid(out/self.init_G)*self.init_G+1
-            return out
-        
-        elif self.num_guidance_info==2:
-            g_init = out[:,0]*self.divide_out
-            alpha = out[:,1]
-            
-            g_init = torch.sigmoid(g_init/self.init_G)*self.init_G+1
-            alpha = torch.sigmoid(alpha)
+        out *=self.divide_out
+        out = torch.sigmoid(out/self.init_G)*self.init_G+1
+        return out
 
-            return g_init, alpha
             
   
 class GuidanceModel2(nn.Module):
@@ -99,37 +90,27 @@ class GuidanceModel2(nn.Module):
             self.MLP_modules.append(nn.Linear(self.in_size, self.in_size))
             self.MLP_modules.append(self.activate)
         
-        self.MLP_modules.append(nn.BatchNorm1d(self.in_size))
+        self.MLP_modules.append(nn.LayerNorm(self.in_size))
         for _ in range(self.num_mlp_layers):
             self.MLP_modules.append(nn.Linear(self.in_size, self.in_size // 2))
             self.MLP_modules.append(self.activate)
             self.in_size = self.in_size // 2
 
         self.MLP = nn.Sequential(*self.MLP_modules)
-        self.batchnorm = nn.BatchNorm1d(self.in_size)
+        self.layernorm = nn.LayerNorm(self.in_size)
         self.out = nn.Linear(self.in_size, self.num_guidance_info)
         
     def forward(self, x):
 
         out = self.MLP(x)
-        out = self.batchnorm(out)
+        out = self.layernorm(out)
         out = self.out(out)
-        
-        if self.num_guidance_info==1:
-            out *=self.divide_out
-            out = self.relu(2*(torch.sigmoid(out/self.init_G)-0.5))
-            out = out*self.init_G+1
-            return out
-        
-        elif self.num_guidance_info==2:
-            g_init = out[:,0]*self.divide_out
-            alpha = out[:,1]
-            
-            g_init = self.relu(2*(torch.sigmoid(g_init/self.init_G)-0.5))
-            g_init = g_init*self.init_G+1
-            alpha = torch.sigmoid(alpha)
 
-            return g_init, alpha
+        out *=self.divide_out
+        out = self.relu(2*(torch.sigmoid(out/self.init_G)-0.5))
+        out = out*self.init_G+1
+        return out
+        
     
 class AttentionModel(nn.Module):
     
@@ -161,11 +142,19 @@ class AttentionModel(nn.Module):
 
         for block in self.attnblocks:
             hidden_states = block(hidden_states)
-        #cls_token = hidden_states[:,0]
-        #output = self.W(cls_token)
-        output = self.W(hidden_states)
 
-        output = torch.mean(output, dim=1)
+        img_token = hidden_states[:,0]
+        from_token = hidden_states[:,1]
+        to_token = hidden_states[:,2]
+        
+        direction = to_token - from_token
+        
+        img_token = img_token/torch.norm(img_token, dim=1, keepdim=True)
+        direction = direction/torch.norm(direction, dim=1, keepdim=True)
+        
+        output = img_token*direction
+
+        output = self.W(output)
         
         output = output*self.divide_out
         
@@ -173,44 +162,3 @@ class AttentionModel(nn.Module):
         
         return g_init
     
-
-class AttentionModel2(nn.Module):
-    
-    def __init__(self,
-                 init_g : float,
-                 divide_out : float,
-                 num_guidance_info : int,
-                 num_layers : int,
-                 hidden_dim : int,
-                 heads : int=8,
-                 **kwargs,
-                 ):
-        super().__init__()
-        self.hidden_dim = hidden_dim
-        self.heads = heads
-        self.init_g = init_g
-        self.divide_out = divide_out
-        self.num_guidance_info = num_guidance_info
-        
-        self.relu = nn.ReLU()
-        
-        self.attnblocks = nn.ModuleList(
-            [AttnBlock(hidden_dim, heads) for _ in range(num_layers)]
-        )
-        
-        self.W = nn.Linear(self.hidden_dim, self.num_guidance_info)
-
-        
-    def forward(self, hidden_states):
-        
-        for block in self.attnblocks:
-            hidden_states = block(hidden_states)
-        cls_token = hidden_states[:,0]
-        output = self.W(cls_token)
-        output = output*self.divide_out
-        
-        out = self.relu(2*(torch.sigmoid(output/self.init_g)-0.5))
-        out = out*self.init_g+1
-        
-        
-        return out

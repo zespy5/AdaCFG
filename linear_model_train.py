@@ -122,10 +122,10 @@ def train(config_path):
     
     # todo: eval data set
     if model_class:
-        guidancemodel = AttentionModel2 if zero_init_model else AttentionModel
+        guidancemodel =  AttentionModel
     else:
         guidancemodel = GuidanceModel2 if zero_init_model else GuidanceModel
-        model_config['hidden_dim'] = model_config['hidden_dim']*2
+        model_config['hidden_dim'] = model_config['hidden_dim']*3
         
     model = guidancemodel(**model_config).to(device)
 
@@ -168,7 +168,8 @@ def train(config_path):
                                              to_clip_embedding], dim=1).view(len(idx), 3, -1)
                 else:
                     model_input = torch.cat([image_embedding,
-                                             model_input_embedding], dim=1)
+                                             from_clip_embedding,
+                                             to_clip_embedding], dim=1)
 
 
 
