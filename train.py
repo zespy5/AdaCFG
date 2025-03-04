@@ -3,10 +3,10 @@ import os
 import wandb
 import torch
 import numpy as np
-from data.Dataset import DomainChangeDataset
+from data.Dataset import DomainMultiChangeDataset
 from util.loss import Loss
 from util.utils import *
-from models.model import GuidanceModel, AttentionModel
+from models.model import MultiConditionAttentionModel
 import yaml
 from tqdm import tqdm
 from pytorch_lightning import seed_everything
@@ -19,11 +19,30 @@ from random import randint
 
 
 
-def train(data_root, train_device):
+def train(config_path):
+    config = get_config(config_path)
+    model_config = config['model']
+    loss_config = config['loss']
+    lr = config['learning_rate']
+    batch_size = config['batch_size']
+    device = config['device']
+    
+    
+    model_name = 'Attention' if config['attention_model'] else 'Linear'
+    model_class = 'zero_init' if config['model_zero_init'] else 'half init'
+    struct_text = config['train_embedding_data'].split('/')[-1].split('_')[0]
+    structure_loss = "dino CosinSim" if loss_config['dino_loss_use'] else "keys_ssim" 
+    clip_loss = "clip_ds" if loss_config['clip_ds_use'] else "clip"
+    
     timestamp = get_timestamp()
     
-    name = f"work-{timestamp}-tranformer struc+condition 3,pnp0.9 lambda_t 1, lambda_s 1, dino squre loss thres 0.3, init 200, lr 0.0001"
-        ############ WANDB INIT #############
+    name = f'''work-{timestamp}-Multi-Condition
+               {model_name} {model_config['num_layers']}, in size {model_config['hidden_dim']}, {model_class},
+               pnp {loss_config['pnp_injection_rate']} alpha {config['origin_alpha']}, lambda_t {loss_config['lambda_text']}, 
+               lambda_s {loss_config['lambda_structure']}, dino thres {loss_config['dino_threshold']}, s_loss {structure_loss}, 
+               t_loss {clip_loss}, init {model_config['init_g']}, div {model_config['divide_out']} 
+               lr {lr}, s_text {struct_text}, negative_clip {loss_config['negative_clip_use']}, guidance_schedule {loss_config['gradient']}'''
+               ############ WANDB INIT #############
     print("--------------- Wandb SETTING ---------------")
     dotenv.load_dotenv()
     WANDB_API_KEY = os.environ.get("WANDB_API_KEY")
@@ -35,137 +54,142 @@ def train(data_root, train_device):
         mode=os.environ.get("WANDB_MODE"),
     )
     
-    seed_everything(54)
+    seed_everything(config['seed'])
     
-    seasons = [' on a summer day',
-               ' on a spring day',
-               ' on a winter day',
-               ' on a autumn day',
-               '']
-    
-    weathers = [' on a rainy day',
+    weathers = [' on a summer day',
+                ' on a spring day',
+                ' on a winter day',
+                ' on an autumn day',
+                ' on a rainy day',
                 ' on a foggy day',
                 ' on a snowy day',
                 ' on a sunny day',
-                ' on a cloudy day',
-                '']
+                ' on a cloudy day',]
     
-    times = [' at night',
+    times = [' at night time',
              ' at sunset',
-             ' at sunrise',
-             ' at daytime',
-             '']
+             ' at daytime']
     
-    conditions = [seasons, weathers, times]
+    domains = [weathers, times]
     
-    batch_size = 5
+    criterion = Loss(device=device,
+                     **loss_config).to(device)
     
-    dataset = DomainChangeDataset(data_directory=data_root)
+    time_prompt_embedds = criterion.prompt_embeds(times)
+    weather_prompt_embedds = criterion.prompt_embeds(weathers)
     
-    dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
+    train_dataset = DomainMultiChangeDataset(data_directory=config['train_data_root'],
+                                             latents_path=config['train_latent_data'],
+                                             embedding_path=config['train_embedding_data'],
+                                             data_length=config['data_length'],
+                                             time_conditions=times,
+                                             time_conditions_embedding=time_prompt_embedds,
+                                             weather_conditions=weathers,
+                                             weather_conditions_embedding=weather_prompt_embedds)
+    train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
+    
+    eval_dataset = DomainMultiChangeDataset(data_directory=config['eval_data_root'],
+                                             latents_path=config['eval_latent_data'],
+                                             embedding_path=config['eval_embedding_data'],
+                                             data_length=100,
+                                             time_conditions=times,
+                                             time_conditions_embedding=time_prompt_embedds,
+                                             weather_conditions=weathers,
+                                             weather_conditions_embedding=weather_prompt_embedds)
+    eval_dataloader = DataLoader(eval_dataset, batch_size=10)
 
                           
-    model = AttentionModel(hidden_dim=768,
-                           heads=4,
-                           init_g=200.0).to(train_device)
-    
-    criterion = Loss(lambda_text=1.0,
-                     lambda_structure=1.0,
-                     device=train_device,
-                     data_root=data_root,
-                     dino_threshold=0.4,
-                     num_condition=3,
-                     generate_condition_prompt=True,
-                     pnp_injection_rate=0.9).to(train_device)
-    
-    conditioned_prompt_embedds = criterion.prompt_embeds
-    original_image_embedds = criterion.image_clip_embeds
-    generate_prompt = criterion.pipeline.generate_prompt
-    lr = 0.0001
+    model = MultiConditionAttentionModel(**model_config).to(device)
+
 
     optimizer = torch.optim.Adam(model.parameters(), lr)
     optimizer_scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer=optimizer,
-                                                            lr_lambda=lambda epoch: 0.99*epoch)
+                                                            lr_lambda=lambda epoch: config['lr_lambda']*epoch)
     min_val_loss = 1000
-    
-    for epoch in range(50):
-        print(f"epoch : {epoch}")
-        #dataset.update_condition_set()
+
+    for epoch in range(100):
+        print(f"work-{timestamp}, epoch : {epoch}")
         total_loss = 0
-        with tqdm(dataloader) as t:
-            for k, image_idx in enumerate(t):
-                #image to text
-                idxs= image_idx.numpy()
-                image_dirs = [data_root/f'{idx:03}.png' for idx in idxs]
-                real_images = [Image.open(img).convert('RGB') for img in image_dirs]
-                original_prompts = generate_prompt(real_images)
+        with tqdm(train_dataloader) as t:
+            for i, inputs in enumerate(t):
+                (idx,
+                 time_condition_number,
+                 weather_condition_number,
+                 real_image_tensor,
+                 image_embedding,
+                 model_time_input_embedding,
+                 model_weather_input_embedding,
+                 latents,
+                 time_sd_text_embedding,
+                 weather_sd_text_embedding,
+                 from_clip_embedding,
+                 to_time_clip_embedding,
+                 to_weather_clip_embedding)= inputs
                 
-                data_len = len(image_dirs)
-                season_prompts = [seasons[randint(0,4)] for _ in range(data_len)]
-                weather_prompts = [weathers[randint(0,5)] for _ in range(data_len)]
-                time_prompts = [times[randint(0,4)] for _ in range(data_len)]
+                selected_time_conditions = [times[i] for i in time_condition_number]
+                selected_weather_conditions = [weathers[i] for i in weather_condition_number]
+                real_image_tensor=real_image_tensor.to(device)
+                image_embedding=image_embedding.to(device)
+                #model_time_input_embedding = model_time_input_embedding.to(device)
+                #model_weather_input_embedding = model_weather_input_embedding.to(device)
+                latents = latents.to(device)
+                time_sd_text_embedding = time_sd_text_embedding.to(device)
+                weather_sd_text_embedding = weather_sd_text_embedding.to(device)
+                from_clip_embedding=from_clip_embedding.to(device)
+                to_time_clip_embedding = to_time_clip_embedding.to(device)
+                to_weather_clip_embedding = to_weather_clip_embedding.to(device)
                 
-                s_season_prompts = [original_prompts[i]+season_prompts[i] for i in range(data_len)]
-                s_weather_prompts = [original_prompts[i]+weather_prompts[i] for i in range(data_len)]
-                s_time_prompts = [original_prompts[i]+time_prompts[i] for i in range(data_len)]
-                season_prompt_embed = conditioned_prompt_embedds(s_season_prompts).unsqueeze(1)
-                weather_prompt_embed = conditioned_prompt_embedds(s_weather_prompts).unsqueeze(1)
-                time_prompt_embed = conditioned_prompt_embedds(s_time_prompts).unsqueeze(1)
+                model_input = torch.cat([image_embedding,
+                                         from_clip_embedding,
+                                         to_time_clip_embedding,
+                                         to_weather_clip_embedding], dim=1).view(len(idx), 4, -1)
                 
-                style_prompts = [season_prompts, weather_prompts, time_prompts]
-                
-                #make conditioned prompt
-                ##construct_prompts = [p.replace(' at night','') for p in original_prompts]
-                ##conditioned_prompts = [construct_prompts[i]+style_prompts[i] for i in range(len(idxs))]
-                
-                #text clip embedding : model inputs
-                original_image_emb = original_image_embedds(real_images).unsqueeze(1)
-                ##conditioned_prompt_emb = conditioned_prompt_embedds(conditioned_prompts)
-                prompt_emb = torch.cat([original_image_emb,
-                                        season_prompt_embed,
-                                        weather_prompt_embed,
-                                        time_prompt_embed], dim=1)
+                pred_ginit, pred_portion = model(model_input)
 
-                prompt_emb.to(train_device)
-
-                pred_ginit, pred_gportion = model(prompt_emb)
-
-                loss, _g, _p, _ccs, _dcs = criterion(image_dirs=image_dirs,
-                                                     real_images=real_images,
-                                                     prompts=style_prompts, 
-                                                     g_init=pred_ginit,
-                                                     g_portion= pred_gportion)
+                to_clip_embedding = torch.cat([to_time_clip_embedding, to_weather_clip_embedding])
+                sd_text_embedding = torch.cat([time_sd_text_embedding, weather_sd_text_embedding])
+                
+                
+                loss, _g, _ccs, _dcs = criterion(real_image_tensor=real_image_tensor,
+                                                 clip_real_image_embedding=image_embedding,
+                                                 from_clip_embedding=from_clip_embedding,
+                                                 to_clip_embedding=to_clip_embedding,
+                                                 model_input_embedding=None,
+                                                 image_latents=latents,
+                                                 sd_prompt_embedding=sd_text_embedding,
+                                                 g_init=pred_ginit,
+                                                 origin_alpha=config['origin_alpha'],
+                                                 g_portion=pred_portion)
+                
                 t.set_postfix(loss=loss.item())
 
-                #edited_imgs = [T.ToPILImage()(latent) for latent in _g]
-                #breakpoint()
+
                 optimizer.zero_grad()
                 loss.backward()
                 optimizer.step()
                 
-                predicts = pred_ginit*pred_gportion.squeeze()
+                
+                time_ccs, weather_ccs = _ccs.chunk(2)
+                predicts = pred_ginit*pred_portion.squeeze()
                 preds = predicts.detach().cpu().numpy()
-                season_ccs = _ccs[0].detach().cpu().numpy()
-                weather_ccs = _ccs[1].detach().cpu().numpy()
-                time_ccs = _ccs[2].detach().cpu().numpy()
+                weather_ccs = weather_ccs.detach().cpu().numpy()
+                time_ccs = time_ccs.detach().cpu().numpy()
                 struc_dcs = _dcs.detach().cpu().numpy()
                 
                 for ps in range(len(preds)):
                     log_conditions_values ={}
-                    log_conditions_values['g_init'+ season_prompts[ps]] = preds.item((ps,0))
-                    log_conditions_values['g_init'+ weather_prompts[ps]] = preds.item((ps,1))
-                    log_conditions_values['g_init'+ time_prompts[ps]] = preds.item((ps,2))
-                    g_init = preds.item((ps,0))+preds.item((ps,1))+preds.item((ps,2))
+                    log_conditions_values['g_init'+ selected_weather_conditions[ps]] = preds.item((ps,1))
+                    log_conditions_values['g_init'+ selected_time_conditions[ps]] = preds.item((ps,0))
+                    g_init = preds.item((ps,0))+preds.item((ps,1))
                     log_conditions_values['sum_g_init'] = g_init
-                    log_conditions_values['clip cosin similarity'+ season_prompts[ps]] = season_ccs.item(ps)
-                    log_conditions_values['clip cosin similarity'+ weather_prompts[ps]] = weather_ccs.item(ps)
-                    log_conditions_values['clip cosin similarity'+ time_prompts[ps]] = time_ccs.item(ps)
+                    log_conditions_values['clip cosin similarity'+ selected_weather_conditions[ps]] = weather_ccs.item(ps)
+                    log_conditions_values['clip cosin similarity'+ selected_time_conditions[ps]] = time_ccs.item(ps)
                     log_conditions_values['dino cosin similarity'] = struc_dcs.item(ps)
                     wandb.log(log_conditions_values)
                     
                 wandb.log({"step loss" : loss})
                 total_loss += loss.item()
-            epoch_loss = total_loss/len(dataloader)
+            epoch_loss = total_loss/len(train_dataloader)
             wandb.log(
                 {   "epoch":epoch+1,
                     "loss": epoch_loss,
@@ -176,11 +200,13 @@ def train(data_root, train_device):
         if epoch%2==0:
             valid_epoch_loss = eval(model= model,
                                     criterion=criterion,
-                                    data_root='image_data/eval',
-                                    conditions=conditions,
+                                    eval_dataloader=eval_dataloader,
+                                    times= times,
+                                    weathers=weathers,
                                     save_image_path=f'Evalutate_images_results/{timestamp}',
                                     epoch=epoch,
-                                    device=train_device)
+                                    origin_alpha=config['origin_alpha'],
+                                    device=device)
             wandb.log(
                     {   "epoch":epoch+1,
                         "valid loss": valid_epoch_loss,
@@ -190,10 +216,11 @@ def train(data_root, train_device):
             if min_val_loss > valid_epoch_loss:
                 min_val_loss = valid_epoch_loss
                 torch.save(model.state_dict(), f"./ckpts/{timestamp}_model.pt")
-
+                
+    torch.save(model.state_dict(), f"./ckpts/{timestamp}_{model_name}_model_last.pt")
 
 
 if __name__ == '__main__':
-    train(Path('image_data/train'),'cuda')
+    train('configs/multi_condition_config.yaml')
             
             

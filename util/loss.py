@@ -111,14 +111,25 @@ class Loss(nn.Module):
         loss = loss.view(-1).mean()
         return loss, clip_cs
     
+    #todo matching the batch size
     def clip_ds_loss(self, real_images,  gen_images, from_prompts, to_prompts):
+        to_batch = to_prompts.shape[0]
+        from_batch = from_prompts.shape[0]
         
         transform_gen_images = self.clip_transform()(gen_images)
         img_features = self.clip_model.get_image_features(transform_gen_images.to(self.device))
         
+        
+        if to_batch != from_batch:
+            assert to_batch%from_batch == 0 and to_batch//from_batch==self.num_condition, 'miss match from_prompts and to_prompts size'
+            
+            real_images = real_images.repeat(self.num_condition, 1)
+            img_features = img_features.repeat(self.num_condition,1)
+            from_prompts = from_prompts.repeat(self.num_condition,1)
+        
+        
         delta_text_features = to_prompts-from_prompts
         delta_image_features = img_features-real_images
-        
 
         clip_cs = F.cosine_similarity(delta_text_features, delta_image_features, dim=1)
         loss = (1-clip_cs)
@@ -189,15 +200,13 @@ class Loss(nn.Module):
         gen_images = outputs.images
         batch_size = gen_images.shape[0]
 
-        clip_cses = []
         
 
         if self.clip_ds_use:
             clip_loss, clip_cs = self.clip_ds_loss(clip_real_image_embedding, gen_images, from_clip_embedding, to_clip_embedding)
-            clip_cses.append(clip_cs.squeeze())
         else:
             clip_loss, clip_cs = self.clip_loss(gen_images, model_input_embedding)
-            clip_cses.append(clip_cs.squeeze())
+
         
         if self.negative_clip_use:
             negative_clip_embedding = self.prompt_embeds(self.negative_prompt)
@@ -217,7 +226,6 @@ class Loss(nn.Module):
         
         loss = self.lambda_text*clip_loss + self.lambda_structure*structure_loss
 
-        
-        return loss, gen_images, clip_cses, dino_cs.squeeze()
+        return loss, gen_images, clip_cs, dino_cs
             
             

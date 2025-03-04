@@ -53,7 +53,7 @@ class GuidanceModel(nn.Module):
         out = self.out(out)
         
         out *=self.divide_out
-        out = torch.sigmoid(out/self.init_G)*self.init_G+1
+        out = torch.sigmoid(out)*self.init_G+1
         return out
 
             
@@ -107,7 +107,7 @@ class GuidanceModel2(nn.Module):
         out = self.out(out)
 
         out *=self.divide_out
-        out = self.relu(2*(torch.sigmoid(out/self.init_G)-0.5))
+        out = self.relu(2*(torch.sigmoid(out)-0.5))
         out = out*self.init_G+1
         return out
         
@@ -153,7 +153,57 @@ class AttentionModel(nn.Module):
         output = self.W(output)
         output = output*self.divide_out
         
-        g_init = torch.sigmoid(output/self.init_g)*self.init_g +1
+        g_init = torch.sigmoid(output)*self.init_g +1
         
         return g_init
+    
+
+class MultiConditionAttentionModel(nn.Module):
+    
+    def __init__(self,
+                 init_g : float,
+                 divide_out : float,
+                 num_layers : int,
+                 hidden_dim : int,
+                 heads : int=8,
+                 **kwargs,
+                 ):
+        super().__init__()
+        self.hidden_dim = hidden_dim
+        self.heads = heads
+        self.init_g = init_g
+        self.divide_out = divide_out
+        
+        
+        self.attnblocks = nn.ModuleList(
+            [AttnBlock(hidden_dim, heads) for _ in range(num_layers)]
+        )
+        
+        self.W = nn.Linear(self.hidden_dim, 1)
+        self.gW = nn.Linear(self.hidden_dim, 1)
+
+        
+    def forward(self, hidden_states):
+
+        for block in self.attnblocks:
+            hidden_states = block(hidden_states)
+
+        img_token = hidden_states[:,0]
+        from_token = hidden_states[:,1]
+        time_to_token = hidden_states[:,2]
+        weather_to_token = hidden_states[:,3]
+        
+        init_g = img_token*from_token
+        time_direction = time_to_token - from_token
+        weather_direction = weather_to_token - from_token
+        direction = torch.cat([time_direction.unsqueeze(1), weather_direction.unsqueeze(1)], dim = 1)
+        
+        init_g = self.gW(init_g)
+        init_g = init_g*self.divide_out
+        g_init = torch.sigmoid(init_g)*self.init_g +1
+
+        output = self.W(direction).squeeze()
+        output = torch.softmax(output, dim=1)
+
+        return g_init, output
     

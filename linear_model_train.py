@@ -68,7 +68,7 @@ def train(config_path):
     name = f'''work-{timestamp}-{model_name} {num_layers}, in size {hidden_dim}, {model_class} pnp {pnp_rate} alpha {origin_alpha}
                lambda_t {lambda_t}, lambda_s {lambda_s}, dino thres {dino_thres}, s_loss {structure_loss}, 
                t_loss {clip_loss}, init {init_g}, div {divide_out} lr {lr}, s_text {struct_text}, 
-               negative_clip {negative_clip_use}, guidance_schedule {guid_sche}'''
+               negative_clip {negative_clip_use}, guidance_schedule {guid_sche}, data len {config['data_length']}'''
     
     
     ############ WANDB INIT #############
@@ -133,7 +133,7 @@ def train(config_path):
 
     optimizer = torch.optim.Adam(model.parameters(), lr)
     optimizer_scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer=optimizer,
-                                                            lr_lambda=lambda epoch: 0.95*epoch)
+                                                            lr_lambda=lambda epoch: config['lr_lambda']*epoch)
     min_val_loss = 1000
 
     for epoch in range(100):
@@ -193,7 +193,7 @@ def train(config_path):
                 optimizer.step()
                 
                 preds = pred_ginit.squeeze().detach().cpu().numpy()
-                ccs = _ccs[0].detach().cpu().numpy()
+                ccs = _ccs.detach().cpu().numpy()
                 struc_dcs = _dcs.detach().cpu().numpy()
 
                 for ps in range(len(preds)):
