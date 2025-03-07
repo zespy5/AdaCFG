@@ -26,7 +26,7 @@ def main():
                 ' on a rainy day',
                 ' on a foggy day',
                 ' on a snowy day',
-                ' on a sunny day',
+                ' on a clear day',
                 ' on a cloudy day',
                 ' at night time',
                 ' at sunset',
@@ -63,7 +63,7 @@ def main():
             image_data['from_prompt'] = from_prompt
             origin_text_project_embedding = large_clip_text_embedding(from_prompt)
 
-            text_project_embeddings = {'from_embedding' : origin_text_project_embedding}
+            text_project_embeddings = {'origin' : origin_text_project_embedding}
             sd_text_embeddings = {}
 
             for c in range(len(conditions)):
@@ -85,8 +85,8 @@ def main():
         return config
 
     save_root = Path('merged_latents_forwards')
-    train_save = save_root/'selected_from_street_train_embeddings.pt'
-    eval_save = save_root/'selected_from_street_eval_embeddings.pt'
+    train_save = save_root/'street2_train_embeddings.pt'
+    eval_save = save_root/'street2_eval_embeddings.pt'
     
     train_data = make_config(train_images)
     eval_data = make_config(eval_images)

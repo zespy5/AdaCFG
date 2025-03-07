@@ -97,11 +97,10 @@ def eval(model,
             real_imgs = [T.ToPILImage()(latent) for latent in real_image_tensor]
             edited_imgs = [T.ToPILImage()(latent) for latent in gen_images]
             for a in range(len(edited_imgs)):
-                length = len([*save_dir.glob('*')])
                 str_w_ccs = f'{weather_ccs.item(a):.2f}'.replace('.','_')
                 str_t_ccs = f'{time_ccs.item(a):.2f}'.replace('.','_')
                 str_dcs = f'{struc_dcs.item(a):.2f}'.replace('.','_')
-                s = save_dir/f'{length:03}-{selected_time_conditions[a]}-{int(preds.item(a,0))}-{str_t_ccs}-{selected_weather_conditions[a]}-{int(preds.item(a,1))}-{str_w_ccs}-{str_dcs}.png'
+                s = save_dir/f'{idx.item(a):04}-{selected_time_conditions[a]}-{int(preds.item(a,0))}-{str_t_ccs}-{selected_weather_conditions[a]}-{int(preds.item(a,1))}-{str_w_ccs}-{str_dcs}.png'
                 edited_imgs[a].save(s)
                 save_origin_img = save_dir/f'{idx.item(a):04}-real_image.png'
                 real_imgs[a].save(save_origin_img)

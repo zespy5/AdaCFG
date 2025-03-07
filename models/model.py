@@ -37,7 +37,7 @@ class GuidanceModel(nn.Module):
             self.MLP_modules.append(self.activate)
             
         self.MLP_modules.append(nn.LayerNorm(self.in_size))
-        for _ in range(self.num_mlp_layers):
+        for _ in range(2):
             self.MLP_modules.append(nn.Linear(self.in_size, self.in_size // 2))
             self.MLP_modules.append(self.activate)
             self.in_size = self.in_size // 2
@@ -206,4 +206,44 @@ class MultiConditionAttentionModel(nn.Module):
         output = torch.softmax(output, dim=1)
 
         return g_init, output
+
+
+class MultiConditionAttentionModel2(nn.Module):
     
+    def __init__(self,
+                 init_g : float,
+                 divide_out : float,
+                 num_layers : int,
+                 hidden_dim : int,
+                 heads : int=8,
+                 **kwargs,
+                 ):
+        super().__init__()
+        self.hidden_dim = hidden_dim
+        self.heads = heads
+        self.init_g = init_g
+        self.divide_out = divide_out
+        
+        
+        self.attnblocks = nn.ModuleList(
+            [AttnBlock(hidden_dim, heads) for _ in range(num_layers)]
+        )
+        
+        self.W = nn.Linear(self.hidden_dim, 1)
+
+
+        
+    def forward(self, hidden_states):
+
+        for block in self.attnblocks:
+            hidden_states = block(hidden_states)
+
+        output = self.W(hidden_states).squeeze()
+        init_g = output[:,0]
+        init_g = init_g*self.divide_out
+        g_init = torch.sigmoid(init_g)*self.init_g +1
+
+        portion = output[:,1:]
+        output = torch.softmax(portion, dim=1)
+
+        return g_init.unsqueeze(1), output

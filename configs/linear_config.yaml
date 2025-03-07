@@ -4,13 +4,13 @@ device : "cuda"
 #dataset
 train_data_root : './image_data/train'
 train_latent_data : 'merged_latents_forwards/train_latents.pt'
-train_embedding_data : 'merged_latents_forwards/selected_from_street_train_embeddings.pt'
+train_embedding_data : 'merged_latents_forwards/street_train_embeddings.pt'
 eval_data_root : './image_data/eval'
 eval_latent_data : 'merged_latents_forwards/eval_latents.pt'
-eval_embedding_data : 'merged_latents_forwards/selected_from_street_eval_embeddings.pt'
-data_length : 500
+eval_embedding_data : 'merged_latents_forwards/street_eval_embeddings.pt'
+data_length : 2000
 batch_size : 5
-learning_rate : 0.0001
+learning_rate : 2.0e-8
 lr_lambda : 0.9
 origin_alpha : 0 
 model_zero_init : False
@@ -20,19 +20,19 @@ model:
     divide_out : 0.5
     num_guidance_info : 1
     hidden_dim : 768
-    num_layers : 3
+    num_layers : 5
     hidden_act : "gelu"
     heads : 8
 
 loss:
     negative_prompt: 'ugly, blurry, low resolution, unrealistic, paint, distortion'
     lambda_text : 1.0
-    lambda_structure : 0.2
+    lambda_structure : 0.15
     dino_threshold : 0.0
     num_condition : 1
     pnp_injection_rate : 0.9
     dino_loss_use : True
-    clip_ds_use : True
+    clip_ds_use : False
     negative_clip_use : True
     gradient : 'constant'
     schedule_method : 'cosine'

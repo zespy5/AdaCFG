@@ -4,9 +4,9 @@ import wandb
 import torch
 import numpy as np
 from data.Dataset import DomainMultiChangeDataset
-from util.loss import Loss
+from util.loss import Loss, CLIPOnlyLoss
 from util.utils import *
-from models.model import MultiConditionAttentionModel
+from models.model import *
 import yaml
 from tqdm import tqdm
 from pytorch_lightning import seed_everything
@@ -41,7 +41,8 @@ def train(config_path):
                pnp {loss_config['pnp_injection_rate']} alpha {config['origin_alpha']}, lambda_t {loss_config['lambda_text']}, 
                lambda_s {loss_config['lambda_structure']}, dino thres {loss_config['dino_threshold']}, s_loss {structure_loss}, 
                t_loss {clip_loss}, init {model_config['init_g']}, div {model_config['divide_out']} 
-               lr {lr}, s_text {struct_text}, negative_clip {loss_config['negative_clip_use']}, guidance_schedule {loss_config['gradient']}'''
+               lr {lr}, s_text {struct_text}, negative_clip {loss_config['negative_clip_use']}, guidance_schedule {loss_config['gradient']},
+               data len {config['data_length']}'''
                ############ WANDB INIT #############
     print("--------------- Wandb SETTING ---------------")
     dotenv.load_dotenv()
@@ -63,16 +64,16 @@ def train(config_path):
                 ' on a rainy day',
                 ' on a foggy day',
                 ' on a snowy day',
-                ' on a sunny day',
+                ' on a clear day',
                 ' on a cloudy day',]
     
     times = [' at night time',
              ' at sunset',
              ' at daytime']
     
-    domains = [weathers, times]
     
-    criterion = Loss(device=device,
+    loss_class = Loss if loss_config['dino_loss_use'] else CLIPOnlyLoss
+    criterion = loss_class(device=device,
                      **loss_config).to(device)
     
     time_prompt_embedds = criterion.prompt_embeds(times)
@@ -98,8 +99,10 @@ def train(config_path):
                                              weather_conditions_embedding=weather_prompt_embedds)
     eval_dataloader = DataLoader(eval_dataset, batch_size=10)
 
-                          
-    model = MultiConditionAttentionModel(**model_config).to(device)
+    if loss_config['clip_ds_use']:                 
+        model = MultiConditionAttentionModel(**model_config).to(device)
+    else:
+        model = MultiConditionAttentionModel2(**model_config).to(device)
 
 
     optimizer = torch.optim.Adam(model.parameters(), lr)
@@ -139,11 +142,16 @@ def train(config_path):
                 to_time_clip_embedding = to_time_clip_embedding.to(device)
                 to_weather_clip_embedding = to_weather_clip_embedding.to(device)
                 
-                model_input = torch.cat([image_embedding,
-                                         from_clip_embedding,
-                                         to_time_clip_embedding,
-                                         to_weather_clip_embedding], dim=1).view(len(idx), 4, -1)
-                
+                if loss_config['clip_ds_use']:
+                    model_input = torch.cat([image_embedding,
+                                            from_clip_embedding,
+                                            to_time_clip_embedding,
+                                            to_weather_clip_embedding], dim=1).view(len(idx), 4, -1)
+                else:
+                    model_input = torch.cat([image_embedding,
+                                             to_time_clip_embedding,
+                                             to_weather_clip_embedding], dim=1).view(len(idx), 3, -1)
+
                 pred_ginit, pred_portion = model(model_input)
 
                 to_clip_embedding = torch.cat([to_time_clip_embedding, to_weather_clip_embedding])
@@ -197,25 +205,25 @@ def train(config_path):
             )
         
         optimizer_scheduler.step()
-        if epoch%2==0:
-            valid_epoch_loss = eval(model= model,
-                                    criterion=criterion,
-                                    eval_dataloader=eval_dataloader,
-                                    times= times,
-                                    weathers=weathers,
-                                    save_image_path=f'Evalutate_images_results/{timestamp}',
-                                    epoch=epoch,
-                                    origin_alpha=config['origin_alpha'],
-                                    device=device)
-            wandb.log(
-                    {   "epoch":epoch+1,
-                        "valid loss": valid_epoch_loss,
-                    }
-                )
 
-            if min_val_loss > valid_epoch_loss:
-                min_val_loss = valid_epoch_loss
-                torch.save(model.state_dict(), f"./ckpts/{timestamp}_model.pt")
+        valid_epoch_loss = eval(model= model,
+                                criterion=criterion,
+                                eval_dataloader=eval_dataloader,
+                                times= times,
+                                weathers=weathers,
+                                save_image_path=f'Evalutate_images_results/{timestamp}',
+                                epoch=epoch,
+                                origin_alpha=config['origin_alpha'],
+                                device=device)
+        wandb.log(
+                {   "epoch":epoch+1,
+                    "valid loss": valid_epoch_loss,
+                }
+            )
+
+        if min_val_loss > valid_epoch_loss:
+            min_val_loss = valid_epoch_loss
+            torch.save(model.state_dict(), f"./ckpts/{timestamp}_model.pt")
                 
     torch.save(model.state_dict(), f"./ckpts/{timestamp}_{model_name}_model_last.pt")
 

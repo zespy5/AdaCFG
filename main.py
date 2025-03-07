@@ -1,6 +1,6 @@
 from util.guidance_scheduler import GuidanceScheduler
 from pnp import PnPPipeline
-from models.model import GuidanceModel
+from models.model import GuidanceModel, MultiConditionAttentionModel, AttentionModel
 from transformers import CLIPModel, CLIPProcessor
 from pathlib import Path
 import torch
@@ -35,7 +35,7 @@ def image_clip_embeds(image):
 @torch.no_grad()
 def main(model, model_number):
     
-    
+    from_prompt = 'a photograph of a street'
     conditions = [' on a summer day',
                 ' on a spring day',
                 ' on a winter day',
@@ -48,9 +48,9 @@ def main(model, model_number):
                 ' at night time',
                 ' at sunset',
                 ' at daytime']
-    conditions = ['a photograph of a street'+con for con in conditions]
-    model_text_input = prompt_embeds(conditions)
-
+    conditions = [from_prompt+con for con in conditions]
+    to_clip_embedding = prompt_embeds(conditions)
+    from_text_emb = prompt_embeds(from_prompt)
     save_root = Path('check_valid')
     save_root.mkdir(exist_ok=True)
 
@@ -75,20 +75,18 @@ def main(model, model_number):
         image.save(save_origin_image)
         
         image_embedding = image_clip_embeds(image).repeat(len(conditions),1)
-        
-        cos_sim = cosine_similarity(image_embedding, model_text_input, dim=1)
-        max_idx = torch.argmax(cos_sim)
-        
-        from_text_emb = model_text_input[max_idx].unsqueeze(0).repeat(len(conditions),1)
-        
-        model_input = torch.cat([from_text_emb, model_text_input], dim=1)
+        from_clip_embedding = from_text_emb.repeat(len(conditions),1)
+
+        model_input = torch.cat([image_embedding,
+                                 from_clip_embedding,
+                                 to_clip_embedding], dim=1).view(len(conditions), 3, -1)
         guidance_value = model(model_input)
         guidance = guidance_scheduler.get_guidance_scales(guidance_value)
         
         
         images = [img_dir]*len(conditions)
         outputs = pnp(image_dirs=images,
-                      negative_prompt='ugly, blurry, low res, unrealistic, paint',
+                      negative_prompt='ugly, blurry, low resolution, unrealistic, paint, distortion',
                       #blip_conditions=[conditions],
                       prompts=[conditions],
                       guidance_scales=guidance,
@@ -104,27 +102,32 @@ def main(model, model_number):
             gen_images[i].save(save_gen_img)
             
 @torch.no_grad()
-def main2(model, model_number):
+def multi_condition_main(model, model_number):
     
     
-    conditions = [' on a summer day',
-                ' on a spring day',
-                ' on a winter day',
-                ' on an autumn day',
-                ' on a rainy day',
-                ' on a foggy day',
-                ' on a snowy day',
-                ' on a sunny day',
-                ' on a cloudy day',
-                ' at night time',
-                ' at sunset',
-                ' at daytime']
+    conditions = ['',
+                  ' on a summer day',
+                  ' on a spring day',
+                  ' on a winter day',
+                  ' on an autumn day',
+                  ' on a rainy day',
+                  ' on a foggy day',
+                  ' on a snowy day',
+                  ' on a sunny day',
+                  ' on a cloudy day',
+                  ' at night time',
+                  ' at sunset',
+                  ' at daytime']
     conditions = ['a photograph of a street'+con for con in conditions]
-    weather = conditions[:9]
-    time = conditions[9:]
     
-    weather_embedding = prompt_embeds(weather)
-    time_embedding = prompt_embeds(time)
+    embeddings = prompt_embeds(conditions)
+    from_prompt = conditions[0]
+    weather = conditions[1:10]
+    time = conditions[10:]
+    
+    from_embedding = embeddings[0].unsqueeze(0)
+    weather_embedding = embeddings[1:10]
+    time_embedding = embeddings[10:]
 
     save_root = Path('check_valid')
     save_root.mkdir(exist_ok=True)
@@ -145,76 +148,74 @@ def main2(model, model_number):
         save_images = save_valid/image_name
         save_images.mkdir(exist_ok=True)
         
-        for t in time:
+        for i,t in enumerate(time):
+            
+            batch_size = len(weather)
             save_time = save_images/f'{t}'
             save_time.mkdir(exist_ok=True)
-            pnp_multi_cons = [[t]*len(weather), weather]
-            con_for_emb = [t]*len(weather)+ weather
-            model_text_input = prompt_embeds(con_for_emb)  
+            pnp_multi_cons = [[t]*batch_size, weather]
               
             save_origin_image = save_time/'origin.png'
             image = Image.open(img_dir)
             image.save(save_origin_image)
-            image_embedding=image_clip_embeds(image)
-            timecheck_image_embedding = image_embedding.repeat(len(time),1)
-            weathercheck_image_embedding = image_embedding.repeat(len(weather),1)
             
-            weather_cos_sim = cosine_similarity(weather_embedding, weathercheck_image_embedding, dim=1)
-            time_cos_sim = cosine_similarity(time_embedding, timecheck_image_embedding, dim =1)
-            
-            time_max_idx = torch.argmax(time_cos_sim)
-            weather_max_idx = torch.argmax(weather_cos_sim)
-            
-            time_from_emb = time_embedding[time_max_idx].unsqueeze(0).repeat(len(weather),1)
-            weather_from_emb = weather_embedding[weather_max_idx].unsqueeze(0).repeat(len(weather),1)
-            
-            from_input = torch.cat([time_from_emb, weather_from_emb])
-            
-            model_input = torch.cat([from_input, model_text_input], dim=1)
+            image_embedding=image_clip_embeds(image).repeat(batch_size,1)
+            from_emb = from_embedding.repeat(batch_size,1)
+            to_time_clip_embedding = time_embedding[i].unsqueeze(0).repeat(batch_size,1)
 
-            guidance_value = model(model_input)
-            time_g, weather_g = guidance_value.chunk(2)
-            total_g = time_g+weather_g
-            time_portion = time_g/total_g
-            weather_portion = 1-time_portion
-            
-            portions = torch.cat([time_portion, weather_portion], dim=1)
-            guidance = guidance_scheduler.get_guidance_scales(total_g)
+            model_input = torch.cat([image_embedding,
+                                     from_emb,
+                                     to_time_clip_embedding,
+                                     weather_embedding], dim=1).view(batch_size, 4, -1)
+
+            pred_ginit, pred_portion = model(model_input)
+            gs = pred_ginit*pred_portion
+            time_g = gs[:,0]
+            weather_g = gs[:,1]
+
+            guidance = guidance_scheduler.get_guidance_scales(pred_ginit)
 
             images = [img_dir]*len(weather)
             outputs = pnp(image_dirs=images,
-                        negative_prompt='ugly, blurry, low res, unrealistic, paint',
+                        negative_prompt='ugly, blurry, low resolution, unrealistic, paint, distortion',
                         #blip_conditions=pnp_multi_cons,
                         prompts = pnp_multi_cons,
                         num_condition=2,
                         guidance_scales=guidance,
-                        guidance_portion=portions,
+                        guidance_portion=pred_portion,
                         latents_save_root='eval_latents_forward')
             
             t_values = time_g.squeeze().cpu().numpy()
             w_values = weather_g.squeeze().cpu().numpy()
             gen_images = outputs.images
             time_prompts = outputs.prompts[0]
+            weather_prompts = outputs.prompts[1]
 
             for i,w in enumerate(weather):
                 t_g = f'{t_values.item(i):.2f}'.replace('.','_')
                 w_g = f'{w_values.item(i):.2f}'.replace('.','_')
-                save_gen_img = save_time/f'guid-{t_g}-{w_g}-prompt-{time_prompts[i]}-{w}.png'
+                save_gen_img = save_time/f'guid-{t_g}-{w_g}-prompt-{time_prompts[i]}-{weather_prompts[i]}.png'
                 gen_images[i].save(save_gen_img)
         
         
         
     
 if __name__ == '__main__':
-    model_path = Path('ckpts/0225114739_linear_model.pt')
+    model_path = Path('ckpts/0306140704_model.pt')
 
     time = model_path.stem.split('_')[0]
-    model = GuidanceModel(init_g=50.0,
-                          divide_out=0.2,
-                          hidden_dim=768*2,
-                          num_layers=6).to('cuda')
+    #model = AttentionModel(init_g=50.0,
+    #                      divide_out=0.5,
+    #                      hidden_dim=768,
+    #                      num_layers=5,
+    #                      num_guidance_info=1).to('cuda')
+    model = MultiConditionAttentionModel(init_g=100.0,
+                                         divide_out=0.2,
+                                         num_layers=5,
+                                         hidden_dim=768,
+                                         heads=8).to('cuda')
     model.load_state_dict(torch.load(model_path))
     model.eval()
     
-    #main2(model,time)
-    main(model, time)
+    #main(model, time)
+    multi_condition_main(model, time)

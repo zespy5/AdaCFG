@@ -4,7 +4,7 @@ import wandb
 import torch
 import numpy as np
 from data.Dataset import DomainChangeDataset
-from util.loss import Loss
+from util.loss import Loss, CLIPOnlyLoss
 from util.utils import *
 from models.model import *
 import yaml
@@ -97,8 +97,9 @@ def train(config_path):
                 ' at night time',
                 ' at sunset',
                 ' at daytime']
+    loss_class = Loss if dino_loss_use else CLIPOnlyLoss
     
-    criterion = Loss(device=device,
+    criterion = loss_class(device=device,
                      **loss_config).to(device)
     
     conditioned_prompt_embedds = criterion.prompt_embeds(domains)
@@ -121,7 +122,7 @@ def train(config_path):
     
     
     # todo: eval data set
-    if model_class:
+    if model_name:
         guidancemodel =  AttentionModel
     else:
         guidancemodel = GuidanceModel2 if zero_init_model else GuidanceModel
@@ -162,10 +163,10 @@ def train(config_path):
                 to_clip_embedding = to_clip_embedding.to(device)
 
 
-                if model_class:
+                if model_name:
                     model_input = torch.cat([image_embedding,
-                                             from_clip_embedding,
-                                             to_clip_embedding], dim=1).view(len(idx), 3, -1)
+                                             #from_clip_embedding,
+                                             to_clip_embedding], dim=1).view(len(idx), 2, -1)
                 else:
                     model_input = torch.cat([image_embedding,
                                              from_clip_embedding,
@@ -213,26 +214,25 @@ def train(config_path):
             )
         
         optimizer_scheduler.step()
-        if epoch%2==0:
-            valid_epoch_loss = linear_eval(model= model,
-                                           criterion=criterion,
-                                           eval_dataloader=eval_dataloader,
-                                           conditions=domains,
-                                           epoch=epoch,
-                                           save_image_path=f'Evalutate_images_results/{timestamp}',
-                                           device=device,
-                                           origin_alpha=origin_alpha,
-                                           model_class=model_class
-                                           )
-            wandb.log(
-                    {   "epoch":epoch+1,
-                        "valid loss": valid_epoch_loss,
-                    }
-                )
+        valid_epoch_loss = linear_eval(model= model,
+                                        criterion=criterion,
+                                        eval_dataloader=eval_dataloader,
+                                        conditions=domains,
+                                        epoch=epoch,
+                                        save_image_path=f'Evalutate_images_results/{timestamp}',
+                                        device=device,
+                                        origin_alpha=origin_alpha,
+                                        model_class=model_class
+                                        )
+        wandb.log(
+                {   "epoch":epoch+1,
+                    "valid loss": valid_epoch_loss,
+                }
+            )
 
-            if min_val_loss > valid_epoch_loss:
-                min_val_loss = valid_epoch_loss
-                torch.save(model.state_dict(), f"./ckpts/{timestamp}_{model_name}_model.pt")
+        if min_val_loss > valid_epoch_loss:
+            min_val_loss = valid_epoch_loss
+            torch.save(model.state_dict(), f"./ckpts/{timestamp}_{model_name}_model.pt")
 
     torch.save(model.state_dict(), f"./ckpts/{timestamp}_{model_name}_model_last.pt")
 
