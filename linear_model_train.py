@@ -92,8 +92,9 @@ def train(config_path):
                 ' on a rainy day',
                 ' on a foggy day',
                 ' on a snowy day',
-                ' on a sunny day',
+                ' on a clear day',
                 ' on a cloudy day',
+                ' on a windy day',
                 ' at night time',
                 ' at sunset',
                 ' at daytime']
@@ -136,10 +137,16 @@ def train(config_path):
     optimizer_scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer=optimizer,
                                                             lr_lambda=lambda epoch: config['lr_lambda']*epoch)
     min_val_loss = 1000
-
+    min_loss = 1000
+    
+    save_root = Path(f'Train_images_results/{timestamp}')
+    save_root.mkdir(exist_ok=True, parents=True)
+    
     for epoch in range(100):
         print(f"work-{timestamp}, epoch : {epoch}")
         total_loss = 0
+        save_dir = save_root/f'epoch-{epoch}'
+        save_dir.mkdir(exist_ok=True)
         with tqdm(train_dataloader) as t:
             for i, inputs in enumerate(t):
                 (idx,
@@ -153,6 +160,7 @@ def train(config_path):
                  to_clip_embedding)= inputs
                 #image to text
                 
+                idx = idx.numpy()
                 selected_conditions = [domains[i] for i in condition_number]
                 real_image_tensor=real_image_tensor.to(device)
                 image_embedding=image_embedding.to(device)
@@ -204,6 +212,14 @@ def train(config_path):
                     log_conditions_values['dino cosin similarity'] = struc_dcs.item(ps)
                     wandb.log(log_conditions_values)
 
+                if i%10==0:
+                    edited_imgs = [T.ToPILImage()(latent) for latent in _g]
+                    for a in range(len(edited_imgs)):
+                        str_s_ccs = f'{ccs.item(a):.2f}'.replace('.','_')
+                        str_dcs = f'{struc_dcs.item(a):.2f}'.replace('.','_')
+                        s = save_dir/f'{idx.item(a):04}-{selected_conditions[a]}-{int(preds.item(a))}-{str_s_ccs}-{str_dcs}.png'
+                        edited_imgs[a].save(s)
+                        
                 wandb.log({"step loss" : loss})
                 total_loss += loss.item()
             epoch_loss = total_loss/len(train_dataloader)
@@ -212,6 +228,9 @@ def train(config_path):
                     "loss": epoch_loss,
                 }
             )
+            if min_loss > epoch_loss:
+                min_loss = epoch_loss
+                torch.save(model.state_dict(), f"./ckpts/train_save/{timestamp}_train_model.pt")
         
         optimizer_scheduler.step()
         valid_epoch_loss = linear_eval(model= model,
@@ -233,8 +252,6 @@ def train(config_path):
         if min_val_loss > valid_epoch_loss:
             min_val_loss = valid_epoch_loss
             torch.save(model.state_dict(), f"./ckpts/{timestamp}_{model_name}_model.pt")
-
-    torch.save(model.state_dict(), f"./ckpts/{timestamp}_{model_name}_model_last.pt")
 
 
 if __name__ == '__main__':

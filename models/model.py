@@ -135,10 +135,21 @@ class AttentionModel(nn.Module):
             [AttnBlock(hidden_dim, heads) for _ in range(num_layers)]
         )
         
-        self.W = nn.Linear(self.hidden_dim, self.num_guidance_info)
+        self.W = nn.Linear(self.hidden_dim*2, self.num_guidance_info)
 
-        
     def forward(self, hidden_states):
+        batch_size = hidden_states.shape[0]
+        for block in self.attnblocks:
+            hidden_states = block(hidden_states)
+        
+        output = hidden_states.view(batch_size,-1)
+        output = self.W(output)
+        output = output*self.divide_out
+        
+        g_init = torch.sigmoid(output)*self.init_g +1
+        
+        return g_init    
+    '''def forward(self, hidden_states):
 
         for block in self.attnblocks:
             hidden_states = block(hidden_states)
@@ -155,7 +166,7 @@ class AttentionModel(nn.Module):
         
         g_init = torch.sigmoid(output)*self.init_g +1
         
-        return g_init
+        return g_init'''
     
 
 class MultiConditionAttentionModel(nn.Module):
@@ -247,3 +258,4 @@ class MultiConditionAttentionModel2(nn.Module):
         output = torch.softmax(portion, dim=1)
 
         return g_init.unsqueeze(1), output
+    

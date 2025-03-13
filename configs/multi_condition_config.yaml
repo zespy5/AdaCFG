@@ -8,9 +8,9 @@ train_embedding_data : 'merged_latents_forwards/street2_train_embeddings.pt'
 eval_data_root : './image_data/eval'
 eval_latent_data : 'merged_latents_forwards/eval_latents.pt'
 eval_embedding_data : 'merged_latents_forwards/street2_eval_embeddings.pt'
-data_length : 2000
+data_length : 500
 batch_size : 5
-learning_rate : 2.0e-8
+learning_rate : 1.0e-8
 lr_lambda : 0.9
 origin_alpha : 0 
 model_zero_init : False
@@ -27,11 +27,10 @@ model:
 loss:
     negative_prompt: 'ugly, blurry, low resolution, unrealistic, paint, distortion'
     lambda_text : 1.0
-    lambda_structure : 0.15
+    lambda_structure : 0.1
     dino_threshold : 0.0
     num_condition : 2
     pnp_injection_rate : 0.9
-    dino_loss_use : True
     clip_ds_use : False
     negative_clip_use : True
     gradient : 'decrease'

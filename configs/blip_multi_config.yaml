@@ -4,20 +4,20 @@ device : "cuda"
 #dataset
 train_data_root : './image_data/train'
 train_latent_data : 'merged_latents_forwards/train_latents.pt'
-train_embedding_data : 'merged_latents_forwards/street3_train_embeddings.pt'
+train_embedding_data : 'merged_latents_forwards/blip_train_embeddings.pt'
 eval_data_root : './image_data/eval'
 eval_latent_data : 'merged_latents_forwards/eval_latents.pt'
-eval_embedding_data : 'merged_latents_forwards/street3_eval_embeddings.pt'
-data_length : 2000
+eval_embedding_data : 'merged_latents_forwards/blip_eval_embeddings.pt'
+data_length : 500
 batch_size : 5
-learning_rate : 2.0e-8
+learning_rate : 1.0e-8
 lr_lambda : 0.9
 origin_alpha : 0 
 model_zero_init : False
 attention_model : True
 model:
-    init_g : 50.0
-    divide_out : 0.5
+    init_g : 100.0
+    divide_out : 0.2
     num_guidance_info : 1
     hidden_dim : 768
     num_layers : 5
@@ -26,10 +26,13 @@ model:
 
 loss:
     negative_prompt: 'ugly, blurry, low resolution, unrealistic, paint, distortion'
+    clip_negative_prompt: 'ugly, blurry, low resolution, unrealistic, paint, distortion, black and white'
     lambda_text : 1.0
-    lambda_structure : 0.1
+    lambda_structure : 0.05
+    lambda_blip : 0.1
+    lambda_negative : 1.1
     dino_threshold : 0.0
-    num_condition : 1
+    num_condition : 2
     pnp_injection_rate : 0.9
     clip_ds_use : False
     negative_clip_use : True

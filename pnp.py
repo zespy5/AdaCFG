@@ -89,13 +89,12 @@ class PnPPipeline(nn.Module):
             images = image_dirs
         
         text = [self.blip_init_text]*len(images)
-        inputs = self.image_processor(images, text, 
-                                      return_tensors="pt").to(self.device)
 
+        inputs = self.image_processor(images, text, return_tensors="pt").to(self.device)
+        
         outputs = self.i2t_model.generate(**inputs)
 
         captions = [self.image_processor.decode(out, skip_special_tokens=True) for out in outputs]
-        captions = [cap.replace(' at night','') for cap in captions]
 
         return captions
         
