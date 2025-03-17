@@ -94,7 +94,7 @@ def train(config_path):
     eval_dataloader = DataLoader(eval_dataset, batch_size=10)
 
               
-    model = MultiConditionAttentionModel2(**model_config).to(device)
+    model = MultiConditionAttentionBLIPModel(**model_config).to(device)
 
 
 
@@ -141,7 +141,7 @@ def train(config_path):
                                          to_clip_embedding], dim=1).view(len(idx), 3, -1)
 
                 pred_ginit, pred_portion = model(model_input)
-
+                
                 sd_text_embedding = torch.cat([blip_sd_text_embedding, condition_sd_text_embedding])
                 
                 

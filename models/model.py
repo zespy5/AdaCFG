@@ -259,3 +259,54 @@ class MultiConditionAttentionModel2(nn.Module):
 
         return g_init.unsqueeze(1), output
     
+class MultiConditionAttentionBLIPModel(nn.Module):
+    
+    def __init__(self,
+                 init_blip_g : float,
+                 init_g : float,
+                 divide_out : float,
+                 num_layers : int,
+                 hidden_dim : int,
+                 heads : int=8,
+                 length : int=3,
+                 **kwargs,
+                 ):
+        super().__init__()
+        self.hidden_dim = hidden_dim
+        self.heads = heads
+        self.init_g = init_g
+        self.divide_out = divide_out
+        self.init_blip_g = init_blip_g
+        self.legth = length
+        
+        self.attnblocks = nn.ModuleList(
+            [AttnBlock(hidden_dim, heads) for _ in range(num_layers)]
+        )
+        
+        self.blip_W = nn.Linear(self.hidden_dim*self.legth, 1)
+        self.W = nn.Linear(self.hidden_dim*self.legth, 1)
+
+
+        
+    def forward(self, hidden_states):
+
+        for block in self.attnblocks:
+            hidden_states = block(hidden_states)
+
+        hidden_states = hidden_states.view(hidden_states.shape[0], -1)
+        
+        blip_output = self.blip_W(hidden_states)
+        init_blip_g = blip_output*self.divide_out
+        blip_g_init = torch.sigmoid(init_blip_g)*self.init_blip_g +1
+        
+        output = self.W(hidden_states)
+        init_g = output*self.divide_out
+        g_init = torch.sigmoid(init_g)*self.init_g +1
+
+        total_g = blip_g_init+g_init
+        portion1 = blip_g_init/total_g
+        portion2 = 1-portion1
+        portion = torch.cat([portion1, portion2], dim=1)
+
+        return total_g, portion
+    
