@@ -28,17 +28,7 @@ def generate_prompt(image_dirs):
     captions = [image_processor.decode(out, skip_special_tokens=True) for out in outputs]
 
     return captions
-def make_mean_condition(json_dir, conditions, loss):
-    large_clip_text_embedding = loss.prompt_embeds
-    large_conditions = get_json(json_dir)
-    
-    mean_embedds = {}
-    for con in conditions:
-        conditioned_embeddings = large_clip_text_embedding(large_conditions[con])
-        mean_embedding = torch.mean(conditioned_embeddings, dim=0)
-        mean_embedds[con] = mean_embedding
-    
-    return mean_embedds
+
 def main():    
     
     loss = Loss(device='cuda',
@@ -50,7 +40,7 @@ def main():
     large_clip_image_embedding = loss.image_clip_embeds
     large_clip_text_embedding = loss.prompt_embeds
     
-    origin_prompt = 'a photograph of a street'
+    origin_prompt = ''
     
     conditions = [' on a summer day',
                   ' on a spring day',
@@ -68,7 +58,11 @@ def main():
     
     conditioned_prompt = [origin_prompt + con for con in conditions]
     conditioned_embeddings = large_clip_text_embedding(conditioned_prompt)
-    mean_embeddings = make_mean_condition('configs/large_conditions.json', conditions, loss)
+    
+    
+    large_conditions = get_json('configs/large_conditions.json')
+    
+
     image_dir = Path('image_data')
     train_dir = image_dir/'train'
     eval_dir = image_dir/'eval'
@@ -78,46 +72,52 @@ def main():
     
     def make_config(images):
         config = {}
+        
+        text_embedds = {}
+        for con in conditions:
+            prompts = large_conditions[con]
+            conditioned_embeddings = large_clip_text_embedding(prompts)
+            mean_embedding = torch.mean(conditioned_embeddings, dim=0)
+            
+            condition_sd_text_embedding = sd_clip_embedding(prompts)
+            
+            each_emb = {'mean_embedding': mean_embedding}
+            prompt_emb_pair = {}
+            for i,prompt in enumerate(prompts):
+                
+                prompt_emb_pair[prompt] = {'clip':conditioned_embeddings[i],
+                                           'sd_clip': condition_sd_text_embedding[i]}
+            each_emb['prompt_emb_pair'] = prompt_emb_pair
+            text_embedds[con] = each_emb
+        
+        config['text'] = text_embedds
+            
+        image_embedds = {}
         for img in tqdm(images):
             file_name = img.stem
             
-            
-            image_data = {}
-            
+            each_emb = {}
             
             image = Image.open(img)
             image_project_embedding = large_clip_image_embedding(image)
-            image_data['image_project_embedding'] = image_project_embedding
+            each_emb['image_project_embedding'] = image_project_embedding
 
             from_prompt = blip_generate_prompt([img])[0]
-            image_data['blip_prompt'] = from_prompt
+            each_emb['blip_prompt'] = from_prompt
             origin_text_project_embedding = large_clip_text_embedding(from_prompt)
             origin_sd_text_embedding = sd_clip_embedding(from_prompt)
-            text_project_embeddings = {'origin' : origin_text_project_embedding}
-            sd_text_embeddings = {'origin': origin_sd_text_embedding}
-
-            for c in range(len(conditions)):
-                con = conditions[c]
-                condition_prompt = conditioned_prompt[c]
-                
-                #condition_text_project_embedding = large_clip_text_embedding(condition_prompt)
-                condition_text_project_embedding = mean_embeddings[con]
-                text_project_embeddings[con] = condition_text_project_embedding
-                
-                condition_sd_text_embedding = sd_clip_embedding(condition_prompt)
-                sd_text_embeddings[con] = condition_sd_text_embedding
-
-            image_data['text_project_embeddings'] = text_project_embeddings
-            image_data['sd_text_embeddings'] = sd_text_embeddings
-
+            each_emb['clip'] = origin_text_project_embedding
+            each_emb['sd_clip'] = origin_sd_text_embedding
             
-            config[file_name] = image_data
+            image_embedds[file_name] = each_emb
+            
+        config['image'] = image_embedds
 
         return config
 
     save_root = Path('merged_latents_forwards')
-    train_save = save_root/'blip+street_train_embeddings.pt'
-    eval_save = save_root/'blip+street_eval_embeddings.pt'
+    train_save = save_root/'zero-shot_train_embeddings.pt'
+    eval_save = save_root/'zero-shot_eval_embeddings.pt'
     
     train_data = make_config(train_images)
     eval_data = make_config(eval_images)

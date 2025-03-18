@@ -121,6 +121,7 @@ class AttentionModel(nn.Module):
                  num_layers : int,
                  hidden_dim : int,
                  heads : int=8,
+                 length : int=3,
                  **kwargs,
                  ):
         super().__init__()
@@ -135,7 +136,7 @@ class AttentionModel(nn.Module):
             [AttnBlock(hidden_dim, heads) for _ in range(num_layers)]
         )
         
-        self.W = nn.Linear(self.hidden_dim*2, self.num_guidance_info)
+        self.W = nn.Linear(self.hidden_dim*length, self.num_guidance_info)
 
     def forward(self, hidden_states):
         batch_size = hidden_states.shape[0]
