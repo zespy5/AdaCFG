@@ -220,7 +220,6 @@ class BLIPLoss(nn.Module):
     
     def __init__(self,
                  negative_prompt : str = 'ugly, blurry, low res, unrealistic, paint',
-                 clip_negative_prompt : str = 'ugly, blurry, low res, unrealistic, paint, black and white',
                  lambda_text : float = 1.0,
                  lambda_blip : float = 0.1,
                  lambda_structure: float = 0.1,
@@ -246,7 +245,6 @@ class BLIPLoss(nn.Module):
         self.num_condition = num_condition
         self.pnp_injection_rate = pnp_injection_rate
         self.negative_clip_use = negative_clip_use
-        self.clip_negative_prompt = clip_negative_prompt
         
         
         self.pipeline = PnPPipeline(device=self.device,
@@ -271,7 +269,7 @@ class BLIPLoss(nn.Module):
         self.structure_transform = self.dino_transform()
         self.structure_loss_func = self.dino_loss
         
-        self.negative_clip_embedding = self.prompt_embeds(self.clip_negative_prompt)
+        self.negative_clip_embedding = self.prompt_embeds(self.negative_prompt)
    
     @torch.no_grad()
     def prompt_embeds(self, prompts):

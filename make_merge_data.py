@@ -40,7 +40,7 @@ def main():
     large_clip_image_embedding = loss.image_clip_embeds
     large_clip_text_embedding = loss.prompt_embeds
     
-    large_conditions = get_json('configs/50_conditions.json')
+    large_conditions = get_json('configs/large_conditions.json')
     
     conditions = list(large_conditions.keys())
 
@@ -97,8 +97,8 @@ def main():
         return config
 
     save_root = Path('merged_latents_forwards')
-    train_save = save_root/'zero-shot-50_train_embeddings.pt'
-    eval_save = save_root/'zero-shot-50_eval_embeddings.pt'
+    train_save = save_root/'zero-shot-20_train_embeddings.pt'
+    eval_save = save_root/'zero-shot-20_eval_embeddings.pt'
     
     train_data = make_config(train_images)
     eval_data = make_config(eval_images)

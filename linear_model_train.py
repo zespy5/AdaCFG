@@ -123,7 +123,7 @@ def train(config_path):
     if model_name:
         guidancemodel =  AttentionModel
     else:
-        guidancemodel = GuidanceModel2 if zero_init_model else GuidanceModel
+        guidancemodel =  GuidanceModel
         model_config['hidden_dim'] = model_config['hidden_dim']*3
         
     model = guidancemodel(**model_config).to(device)

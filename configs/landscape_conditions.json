@@ -1,0 +1,139 @@
+{
+    "train": {
+      "daytime": [
+        "The sky is clear and bright.",
+        "Soft sunlight spreads across the open space.",
+        "A few white clouds drift in the blue sky.",
+        "The air is warm and filled with daylight.",
+        "A gentle breeze moves under the midday sun.",
+        "The sun shines directly overhead.",
+        "The sky is bright with no signs of clouds.",
+        "A warm afternoon with golden light.",
+        "Clear skies stretch endlessly above.",
+        "The sunlight casts a soft glow over the horizon."
+      ],
+      "night": [
+        "The sky is dark and quiet.",
+        "A faint glow from the moon lights the night.",
+        "Stars are scattered across the deep sky.",
+        "The night air feels cool and still.",
+        "The surroundings fade into darkness.",
+        "The horizon is barely visible in the dim night.",
+        "A soft wind moves through the silent night.",
+        "The sky is covered with heavy night clouds.",
+        "The darkness stretches endlessly above.",
+        "A peaceful quiet fills the night air."
+      ],
+      "sunset": [
+        "The sky glows with deep orange and red hues.",
+        "Soft pink and purple colors spread across the horizon.",
+        "The last light of the sun fades slowly.",
+        "The sky is painted with warm golden tones.",
+        "The sun dips below the horizon, leaving a warm glow.",
+        "Shades of orange blend into deep blue.",
+        "The clouds reflect the fading sunlight.",
+        "A peaceful warmth lingers in the air.",
+        "The colors shift gently as night approaches.",
+        "The horizon glows softly in the evening light."
+      ],
+      "rain": [
+        "Raindrops fall steadily from the gray sky.",
+        "The air is damp with the scent of rain.",
+        "A light drizzle covers everything in mist.",
+        "Dark clouds gather as rain continues to fall.",
+        "The sky is filled with heavy rain clouds.",
+        "Raindrops ripple in puddles forming on the ground.",
+        "A steady rain soaks the surroundings.",
+        "A cool breeze moves through the rainy air.",
+        "The sound of raindrops echoes through the open space.",
+        "The sky remains overcast with no sign of clearing."
+      ],
+      "fog": [
+        "A thick fog covers the landscape in pale mist.",
+        "The air feels dense and cool with fog.",
+        "The surroundings fade into a soft haze.",
+        "A thin mist hangs low in the air.",
+        "The view is obscured by heavy fog.",
+        "The horizon is barely visible through the mist.",
+        "The atmosphere is quiet and still in the fog.",
+        "The sky and ground blend into a white haze.",
+        "Everything appears softened by the dense fog.",
+        "A quiet calm lingers in the misty air."
+      ],
+      "snow": [
+        "Snowflakes drift gently from the sky.",
+        "A soft layer of snow covers the ground.",
+        "The air feels crisp and cold with falling snow.",
+        "Snowfall continues under a pale winter sky.",
+        "The landscape is silent under fresh snowfall.",
+        "Snowflakes swirl as the wind moves through the air.",
+        "A thick blanket of snow stretches into the distance.",
+        "The sky is overcast with a wintry chill.",
+        "Footprints disappear quickly in the falling snow.",
+        "The cold air carries a faint scent of ice."
+      ],
+      "cloudy": [
+        "The sky is covered with thick gray clouds.",
+        "A dull light spreads under the overcast sky.",
+        "Heavy clouds stretch endlessly above.",
+        "The air is cool beneath the cloudy sky.",
+        "No sunlight reaches through the dense clouds.",
+        "A uniform gray sky looms overhead.",
+        "The atmosphere feels heavy under thick clouds.",
+        "The horizon is dim under the clouded sky.",
+        "A light wind moves under the overcast sky.",
+        "A soft, muted glow fills the cloudy air."
+      ]
+    },
+    "validation": {
+      "daytime": [
+        "Bright sunlight fills the open sky.",
+        "The air is warm under the midday sun.",
+        "Soft light spreads across the sky.",
+        "A clear sky stretches far above.",
+        "Gentle warmth radiates from the sun."
+      ],
+      "night": [
+        "The deep night sky is silent.",
+        "Cool air moves through the darkness.",
+        "Stars twinkle faintly in the vast sky.",
+        "A peaceful stillness fills the night.",
+        "The horizon blends into the dark sky."
+      ],
+      "sunset": [
+        "The sky glows warmly as the sun sets.",
+        "A golden hue spreads across the horizon.",
+        "Shades of pink and orange fill the sky.",
+        "The last light of the day lingers softly.",
+        "The sun dips below the distant skyline."
+      ],
+      "rain": [
+        "A steady drizzle falls from the gray sky.",
+        "Cool raindrops scatter on the damp ground.",
+        "The scent of fresh rain fills the air.",
+        "Dark clouds release a continuous rain.",
+        "Puddles form as rain continues to fall."
+      ],
+      "fog": [
+        "A thick mist blankets the surroundings.",
+        "Fog rolls in, obscuring the view.",
+        "The cool air is dense with fog.",
+        "Everything fades into a soft haze.",
+        "The landscape is hidden behind a white mist."
+      ],
+      "snow": [
+        "Snow falls gently from the pale sky.",
+        "A fresh layer of snow covers the earth.",
+        "The air is crisp with winter¡¯s chill.",
+        "Snowflakes swirl in the cold wind.",
+        "The ground glistens under the snowfall."
+      ],
+      "cloudy": [
+        "Gray clouds fill the sky completely.",
+        "A heavy overcast blocks the sunlight.",
+        "The atmosphere is cool and cloudy.",
+        "No breaks appear in the dense clouds.",
+        "A uniform gray sky covers everything."
+      ]
+    }
+  }

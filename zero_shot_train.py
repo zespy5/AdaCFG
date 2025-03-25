@@ -83,8 +83,6 @@ def train(config_path):
     
     model = AttentionModel(**model_config).to(device)
 
-
-
     optimizer = torch.optim.Adam(model.parameters(), lr)
     optimizer_scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer=optimizer,
                                                             lr_lambda=lambda epoch: config['lr_lambda']*epoch)
