@@ -40,36 +40,17 @@ def main():
     large_clip_image_embedding = loss.image_clip_embeds
     large_clip_text_embedding = loss.prompt_embeds
     
-    origin_prompt = ''
+    large_conditions = get_json('configs/50_conditions.json')
     
-    conditions = [' on a summer day',
-                  ' on a spring day',
-                  ' on a winter day',
-                  ' on an autumn day',
-                  ' on a rainy day',
-                  ' on a foggy day',
-                  ' on a snowy day',
-                  ' on a clear day',
-                  ' on a cloudy day',
-                  ' on a windy day',
-                  ' at night time',
-                  ' at sunset',
-                  ' at daytime']
-    
-    conditioned_prompt = [origin_prompt + con for con in conditions]
-    conditioned_embeddings = large_clip_text_embedding(conditioned_prompt)
-    
-    
-    large_conditions = get_json('configs/large_conditions.json')
-    
+    conditions = list(large_conditions.keys())
 
     image_dir = Path('image_data')
     train_dir = image_dir/'train'
     eval_dir = image_dir/'eval'
 
     train_images = sorted([*train_dir.glob('*')])
-    eval_images =sorted([*eval_dir.glob('*')])
-    
+    eval_images  = sorted([*eval_dir.glob('*')])
+     
     def make_config(images):
         config = {}
         
@@ -116,8 +97,8 @@ def main():
         return config
 
     save_root = Path('merged_latents_forwards')
-    train_save = save_root/'zero-shot_train_embeddings.pt'
-    eval_save = save_root/'zero-shot_eval_embeddings.pt'
+    train_save = save_root/'zero-shot-50_train_embeddings.pt'
+    eval_save = save_root/'zero-shot-50_eval_embeddings.pt'
     
     train_data = make_config(train_images)
     eval_data = make_config(eval_images)

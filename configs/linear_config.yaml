@@ -8,10 +8,10 @@ train_embedding_data : 'merged_latents_forwards/street3_train_embeddings.pt'
 eval_data_root : './image_data/eval'
 eval_latent_data : 'merged_latents_forwards/eval_latents.pt'
 eval_embedding_data : 'merged_latents_forwards/street3_eval_embeddings.pt'
-data_length : 2000
+data_length : 1000
 batch_size : 5
-learning_rate : 2.0e-8
-lr_lambda : 0.9
+learning_rate : 1.0e-6
+lr_lambda : 0.7
 origin_alpha : 0 
 model_zero_init : False
 attention_model : True
@@ -23,11 +23,12 @@ model:
     num_layers : 5
     hidden_act : "gelu"
     heads : 8
+    length : 2
 
 loss:
     negative_prompt: 'ugly, blurry, low resolution, unrealistic, paint, distortion'
     lambda_text : 1.0
-    lambda_structure : 0.1
+    lambda_structure : 0.12
     dino_threshold : 0.0
     num_condition : 1
     pnp_injection_rate : 0.9

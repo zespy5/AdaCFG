@@ -11,18 +11,17 @@ eval_embedding_data : 'merged_latents_forwards/zero-shot_eval_embeddings.pt'
 data_length : 1000
 batch_size : 5
 learning_rate : 1.0e-6
-lr_lambda : 0.7
+lr_lambda : 0.5
 origin_alpha : 0 
 
 model:
-    init_blip_g : 20.0
     init_g : 50.0
     divide_out : 0.2
     num_guidance_info : 1
     hidden_dim : 768
     num_layers : 5
-    heads : 8
-    length : 3
+    heads : 4
+    length : 2
 
 loss:
     negative_prompt: 'ugly, blurry, low resolution, unrealistic, paint, distortion'
@@ -30,10 +29,10 @@ loss:
     lambda_text : 0.5
     lambda_structure : 0.1
     lambda_mean : 0.5
-    lambda_negative : 1.2
+    lambda_negative : 1.0
     dino_threshold : 0.0
     num_condition : 1
-    pnp_injection_rate : 0.9
+    pnp_injection_rate : 0.95
     clip_ds_use : False
     negative_clip_use : True
     gradient : 'decrease'

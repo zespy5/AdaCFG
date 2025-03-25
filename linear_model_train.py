@@ -4,7 +4,7 @@ import wandb
 import torch
 import numpy as np
 from data.Dataset import DomainChangeDataset
-from util.loss import Loss, CLIPOnlyLoss
+from util.loss import Loss
 from util.utils import *
 from models.model import *
 import yaml
@@ -53,7 +53,6 @@ def train(config_path):
     lambda_t = loss_config['lambda_text']
     lambda_s = loss_config['lambda_structure']
     dino_thres = loss_config['dino_threshold']
-    dino_loss_use = loss_config['dino_loss_use']
     guid_sche = loss_config['gradient']
     clip_ds_use = loss_config['clip_ds_use']
     negative_clip_use = loss_config['negative_clip_use']
@@ -61,12 +60,11 @@ def train(config_path):
     model_name = 'Attention' if model_class else 'Linear'
     model_class = 'zero_init' if zero_init_model else 'half init'
     struct_text = train_embedding_data.split('/')[-1].split('_')[0]
-    structure_loss = "dino CosinSim" if dino_loss_use else "keys_ssim" 
     clip_loss = "clip_ds" if clip_ds_use else "clip"
     timestamp = get_timestamp()
     
     name = f'''work-{timestamp}-{model_name} {num_layers}, in size {hidden_dim}, {model_class} pnp {pnp_rate} alpha {origin_alpha}
-               lambda_t {lambda_t}, lambda_s {lambda_s}, dino thres {dino_thres}, s_loss {structure_loss}, 
+               lambda_t {lambda_t}, lambda_s {lambda_s}, dino thres {dino_thres}, 
                t_loss {clip_loss}, init {init_g}, div {divide_out} lr {lr}, s_text {struct_text}, 
                negative_clip {negative_clip_use}, guidance_schedule {guid_sche}, data len {config['data_length']}'''
     
@@ -98,9 +96,8 @@ def train(config_path):
                 ' at night time',
                 ' at sunset',
                 ' at daytime']
-    loss_class = Loss if dino_loss_use else CLIPOnlyLoss
     
-    criterion = loss_class(device=device,
+    criterion = Loss(device=device,
                      **loss_config).to(device)
     
     conditioned_prompt_embedds = criterion.prompt_embeds(domains)

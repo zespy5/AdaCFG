@@ -50,22 +50,23 @@ def image_clip_embeds(image):
     image_features = clip_model.get_image_features(clip_inputs["pixel_values"].to('cuda'))
         
     return image_features
-'''@torch.no_grad()
+@torch.no_grad()
 def main(model, model_number, grad):   
     conditions = get_json('configs/conditions.json')
     
     save_root = Path('check_valid')
     save_root.mkdir(exist_ok=True)
 
-    save_valid = save_root/f'val-zero-shot-{model_number}'
+    save_valid = save_root/f'val-zero-shot-{model_number}-39'
     save_valid.mkdir(exist_ok=True)
     
 
-    pnp = PnPPipeline()
+    pnp = PnPPipeline(pnp_attn_t=0.95,
+                      pnp_f_t=0.95)
     guidance_scheduler = GuidanceScheduler(gradient=grad)
     
     data_root = Path('image_data/eval')
-    image_dirs = sorted([*data_root.glob('*')])[:25]
+    image_dirs = sorted([*data_root.glob('*')])[:30]
     
     
     for img_dir in tqdm(image_dirs):
@@ -78,6 +79,7 @@ def main(model, model_number, grad):
         image.save(save_origin_image)
         image_embedding = image_clip_embeds(image)
         for k,v in conditions.items():
+            v=v[:10]
             save_category = save_images/k
             save_category.mkdir(exist_ok=True)
             batch_size = len(v)
@@ -104,8 +106,8 @@ def main(model, model_number, grad):
             for i in range(batch_size):
                 g = f'{guidance_values.item(i):.2f}'.replace('.','_')
                 save_gen_img = save_category/f'guid-{g}-prompt-{prompts[i]}.png'
-                gen_images[i].save(save_gen_img)'''
-@torch.no_grad()
+                gen_images[i].save(save_gen_img)
+'''@torch.no_grad()
 def main(model, model_number,grad):
 
     
@@ -119,6 +121,7 @@ def main(model, model_number,grad):
                 ' on a snowy day',
                 ' on a clear day',
                 ' on a cloudy day',
+                ' on a windy day',
                 ' at night time',
                 ' at sunset',
                 ' at daytime']
@@ -132,11 +135,12 @@ def main(model, model_number,grad):
     save_valid.mkdir(exist_ok=True)
 
 
-    pnp = PnPPipeline()
+    pnp = PnPPipeline(pnp_attn_t=0.95,
+                      pnp_f_t=0.95)
     guidance_scheduler = GuidanceScheduler(gradient=grad)
 
     data_root = Path('image_data/eval')
-    image_dirs = sorted([*data_root.glob('*')])
+    image_dirs = sorted([*data_root.glob('*')])[:30]
 
 
     for img_dir in tqdm(image_dirs):
@@ -171,7 +175,7 @@ def main(model, model_number,grad):
             g = f'{guidance_values.item(i):.2f}'.replace('.','_')
             save_gen_img = save_images/f'guid-{g}-prompt-{prompts[i]}.png'
             gen_images[i].save(save_gen_img)
-            
+            '''
 @torch.no_grad()
 def multi_condition_main(model, model_number,grad):
     
@@ -353,11 +357,11 @@ def blip_main(model, model_number, grad):
 
     
 if __name__ == '__main__':
-    model_path = Path('ckpts/0312090543_Attention_model.pt')
+    model_path = Path('ckpts/0320204349/39_model.pt')
 
-    time = model_path.stem.split('_')[0]
+    time = model_path.as_posix().split('/')[-2]
     model = AttentionModel(init_g=50.0,
-                          divide_out=0.5,
+                          divide_out=0.2,
                           hidden_dim=768,
                           num_layers=5,
                           length=2,

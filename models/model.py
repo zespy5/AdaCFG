@@ -130,7 +130,7 @@ class AttentionModel(nn.Module):
         self.init_g = init_g
         self.divide_out = divide_out
         self.num_guidance_info = num_guidance_info
-        
+        self.relu = nn.ReLU()
         
         self.attnblocks = nn.ModuleList(
             [AttnBlock(hidden_dim, heads) for _ in range(num_layers)]
@@ -138,7 +138,7 @@ class AttentionModel(nn.Module):
         
         self.W = nn.Linear(self.hidden_dim*length, self.num_guidance_info)
 
-    def forward(self, hidden_states):
+    '''def forward(self, hidden_states):
         batch_size = hidden_states.shape[0]
         for block in self.attnblocks:
             hidden_states = block(hidden_states)
@@ -149,25 +149,21 @@ class AttentionModel(nn.Module):
         
         g_init = torch.sigmoid(output)*self.init_g +1
         
-        return g_init    
-    '''def forward(self, hidden_states):
-
+        return g_init '''  
+     
+    def forward(self, hidden_states):
+        batch_size = hidden_states.shape[0]
         for block in self.attnblocks:
             hidden_states = block(hidden_states)
-
-        img_token = hidden_states[:,0]
-        from_token = hidden_states[:,1]
-        to_token = hidden_states[:,2]
         
-        direction = to_token - from_token
-        
-        output = img_token*direction
+        output = hidden_states.view(batch_size,-1)
         output = self.W(output)
         output = output*self.divide_out
+        out = self.relu(2*(torch.sigmoid(output)-0.5))
+        g_init = out*self.init_g +1
         
-        g_init = torch.sigmoid(output)*self.init_g +1
+        return g_init
         
-        return g_init'''
     
 
 class MultiConditionAttentionModel(nn.Module):

@@ -211,22 +211,23 @@ class DomainChangeZeroShotDataset(Dataset):
                  latents_path: Union[str, Path],
                  embedding_path: Union[str, Path],
                  data_length : int,
-                 conditions : List[str],
-                 conditions_embedding: torch.Tensor
                  ):
         self.data_directory = Path(data_directory) if isinstance(data_directory, str) else data_directory
         self.image_names = sorted([*self.data_directory.glob('*')])[:data_length]
         assert len(self.image_names)!=0, "There is no image files"
         
-        self.conditions = conditions
-        self.condition_length = len(conditions)
-        self.conditions_embedding = conditions_embedding
-        self.data_length = data_length
+        
         
         self.latents = torch.load(latents_path, weights_only=False, map_location='cpu')
         embeddings = torch.load(embedding_path, weights_only=False, map_location='cpu')
         self.image_embeddings = embeddings['image']
         self.text_embeddings = embeddings['text']
+        
+        conditions = list(self.text_embeddings.keys())
+        
+        self.conditions = conditions
+        self.condition_length = len(conditions)
+        self.data_length = data_length
         
         self.transform = ToTensor()
         

@@ -328,7 +328,7 @@ def zero_shot_eval(model,
             to_clip_embedding = to_clip_embedding.to(device)
 
             model_input = torch.cat([image_embedding,
-                                     condition_mean,
+                                     #condition_mean,
                                      to_clip_embedding], dim=1).view(len(idx), length, -1)
 
             pred_ginit = model(model_input)

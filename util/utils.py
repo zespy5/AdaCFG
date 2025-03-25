@@ -15,7 +15,7 @@ def get_config(config_path):
     return config
 
 def get_json(config_path):
-    with open(config_path, "r") as f:
+    with open(config_path, "r",encoding="euc-kr", errors="replace") as f:
         config = json.load(f)
         
     return config

@@ -62,44 +62,25 @@ def train(config_path):
     )
     
     seed_everything(config['seed'])
-    
-    domains = [' on a summer day',
-                ' on a spring day',
-                ' on a winter day',
-                ' on an autumn day',
-                ' on a rainy day',
-                ' on a foggy day',
-                ' on a snowy day',
-                ' on a clear day',
-                ' on a cloudy day',
-                ' on a windy day',
-                ' at night time',
-                ' at sunset',
-                ' at daytime']
-    
-    
+     
     criterion = ZeroShotLoss(device=device,
                      **loss_config).to(device)
-    
-    conditioned_prompt_embedds = criterion.prompt_embeds(domains)
     
     train_dataset = DomainChangeZeroShotDataset(data_directory=config['train_data_root'],
                                              latents_path=config['train_latent_data'],
                                              embedding_path=config['train_embedding_data'],
-                                             data_length=config['data_length'],
-                                             conditions=domains,
-                                             conditions_embedding=conditioned_prompt_embedds)
+                                             data_length=config['data_length'])
     train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
     train_prompts = train_dataset.text_embeddings
     eval_dataset = DomainChangeZeroShotDataset(data_directory=config['eval_data_root'],
                                              latents_path=config['eval_latent_data'],
                                              embedding_path=config['eval_embedding_data'],
-                                             data_length=100,
-                                             conditions=domains,
-                                             conditions_embedding=conditioned_prompt_embedds)
+                                             data_length=100)
     eval_dataloader = DataLoader(eval_dataset, batch_size=10)
     eval_prompts = eval_dataset.text_embeddings
-              
+    
+    domains = train_dataset.conditions
+    
     model = AttentionModel(**model_config).to(device)
 
 
@@ -149,7 +130,7 @@ def train(config_path):
                 
 
                 model_input = torch.cat([image_embedding,
-                                         condition_mean,
+                                         #condition_mean,
                                          to_clip_embedding], dim=1).view(len(idx), model_config['length'], -1)
 
                 pred_ginit = model(model_input)
@@ -221,10 +202,12 @@ def train(config_path):
                     "valid loss": valid_epoch_loss,
                 }
             )
-
+        model_save_path = Path('ckpts')
+        model_save_path = model_save_path/f'{timestamp}'
+        model_save_path.mkdir(exist_ok=True)
         if min_val_loss > valid_epoch_loss:
             min_val_loss = valid_epoch_loss
-            torch.save(model.state_dict(), f"./ckpts/{timestamp}_model.pt")
+            torch.save(model.state_dict(), f"./ckpts/{timestamp}/{epoch}_model.pt")
                 
 
 if __name__ == '__main__':
