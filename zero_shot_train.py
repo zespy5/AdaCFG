@@ -158,8 +158,8 @@ def train(config_path):
                 
                 for ps in range(len(preds)):
                     log_conditions_values ={}
-                    log_conditions_values['g_init'+ selected_conditions[ps]] = preds.item(ps)
-                    log_conditions_values['clip cosin similarity'+ selected_conditions[ps]] = condition_ccs.item(ps)
+                    log_conditions_values['g_init '+ selected_conditions[ps]] = preds.item(ps)
+                    log_conditions_values['clip cosin similarity '+ selected_conditions[ps]] = condition_ccs.item(ps)
                     log_conditions_values['dino cosin similarity'] = struc_dcs.item(ps)
                     wandb.log(log_conditions_values)
                     

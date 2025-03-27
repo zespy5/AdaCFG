@@ -4,10 +4,10 @@ device : "cuda"
 #dataset
 train_data_root : './image_data/train'
 train_latent_data : 'merged_latents_forwards/train_latents.pt'
-train_embedding_data : 'merged_latents_forwards/zero-shot_train_embeddings.pt'
+train_embedding_data : 'merged_latents_forwards/zero-shot-20_train_embeddings.pt'
 eval_data_root : './image_data/eval'
 eval_latent_data : 'merged_latents_forwards/eval_latents.pt'
-eval_embedding_data : 'merged_latents_forwards/zero-shot_eval_embeddings.pt'
+eval_embedding_data : 'merged_latents_forwards/zero-shot-20_eval_embeddings.pt'
 data_length : 1000
 batch_size : 5
 learning_rate : 1.0e-6
@@ -20,7 +20,7 @@ model:
     num_guidance_info : 1
     hidden_dim : 768
     num_layers : 5
-    heads : 4
+    heads : 8
     length : 2
 
 loss:

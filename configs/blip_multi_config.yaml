@@ -9,7 +9,7 @@ eval_data_root : './image_data/eval'
 eval_latent_data : 'merged_latents_forwards/eval_latents.pt'
 eval_embedding_data : 'merged_latents_forwards/zero-shot-20_eval_embeddings.pt'
 data_length : 1000
-batch_size : 5
+batch_size : 6
 learning_rate : 1.0e-6
 lr_lambda : 0.5
 origin_alpha : 0 
@@ -19,21 +19,21 @@ model:
     init_g : 50.0
     divide_out : 0.1
     hidden_dim : 768
-    num_layers : 5
-    heads : 8
+    num_layers : 2
+    heads : 4
     length : 3
 
 loss:
     negative_prompt: 'ugly, blurry, low resolution, unrealistic, paint, distortion'
-    lambda_text : 0.5
-    lambda_structure : 0.1
-    lambda_blip : 0.5
+    lambda_text : 0.9
+    lambda_structure : 0.0
+    lambda_blip : 0.1
     lambda_negative : 1.0
     dino_threshold : 0.0
     num_condition : 2
     pnp_injection_rate : 0.95
     clip_ds_use : False
-    negative_clip_use : True
+    negative_clip_use : False
     gradient : 'decrease'
     schedule_method : 'cosine'
 

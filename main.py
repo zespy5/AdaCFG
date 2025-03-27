@@ -57,7 +57,7 @@ def main(model, model_number, grad):
     save_root = Path('check_valid')
     save_root.mkdir(exist_ok=True)
 
-    save_valid = save_root/f'val-zero-shot-{model_number}-39'
+    save_valid = save_root/f'val-zero-shot-{model_number}-39-1'
     save_valid.mkdir(exist_ok=True)
     
 
@@ -278,19 +278,17 @@ def multi_condition_main(model, model_number,grad):
 def blip_main(model, model_number, grad):
     
     
-    conditions = [' on a summer day',
-                  ' on a spring day',
-                  ' on a winter day',
-                  ' on an autumn day',
-                  ' on a rainy day',
-                  ' on a foggy day',
-                  ' on a snowy day',
-                  ' on a clear day',
-                  ' on a cloudy day',
-                  ' on a windy day',
-                  ' at night time',
-                  ' at sunset',
-                  ' at daytime']
+    from_prompt = 'a photograph of a street'
+    conditions = [' on a rainy day',
+                ' on a foggy day',
+                ' on a snowy day',
+                ' on a clear day',
+                ' on a cloudy day',
+                ' at night time',
+                ' at sunset',
+                ' at daytime']
+
+    conditions = [from_prompt+con for con in conditions]
     embeddings = prompt_embeds(conditions)
     
     save_root = Path('check_valid')
@@ -300,7 +298,8 @@ def blip_main(model, model_number, grad):
     save_valid.mkdir(exist_ok=True)
     
     
-    pnp = PnPPipeline()
+    pnp = PnPPipeline(pnp_attn_t=0.95,
+                      pnp_f_t=0.95)
     guidance_scheduler = GuidanceScheduler(gradient=grad)
     
     data_root = Path('image_data/eval')
@@ -328,11 +327,13 @@ def blip_main(model, model_number, grad):
         model_input = torch.cat([image_embedding,
                                     blip_prompt_embedding,
                                     embeddings], dim=1).view(batch_size,3,-1)
-        pred_ginit, pred_portion = model(model_input)
-        gs = pred_ginit*pred_portion
-        blip_g = gs[:,0]
-        condition_g = gs[:,1]
-        guidance = guidance_scheduler.get_guidance_scales(pred_ginit)
+        pred_blip_ginit, pred_ginit = model(model_input)
+        total_g = pred_blip_ginit+pred_ginit
+        portion1 = pred_blip_ginit/total_g
+        portion2 = 1-portion1
+        portion = torch.cat([portion1, portion2], dim=1)
+        
+        guidance = guidance_scheduler.get_guidance_scales(total_g)
 
         images = [img_dir]*batch_size
         outputs = pnp(image_dirs=images,
@@ -340,11 +341,11 @@ def blip_main(model, model_number, grad):
                     prompts = pnp_multi_cons,
                     num_condition=2,
                     guidance_scales=guidance,
-                    guidance_portion=pred_portion,
+                    guidance_portion=portion,
                     latents_save_root='eval_latents_forward')
         
-        t_values = blip_g.squeeze().cpu().numpy()
-        w_values = condition_g.squeeze().cpu().numpy()
+        t_values = pred_blip_ginit.squeeze().cpu().numpy()
+        w_values = pred_ginit.squeeze().cpu().numpy()
         gen_images = outputs.images
         blip_prompts = outputs.prompts[0]
         weather_prompts = outputs.prompts[1]
@@ -357,15 +358,16 @@ def blip_main(model, model_number, grad):
 
     
 if __name__ == '__main__':
-    model_path = Path('ckpts/0320204349/39_model.pt')
-
-    time = model_path.as_posix().split('/')[-2]
-    model = AttentionModel(init_g=50.0,
+    #model_path = Path('ckpts/0320204349/39_model.pt')
+    #time = model_path.as_posix().split('/')[-2]
+    model_path = Path('ckpts/0326180211_model.pt')
+    time = model_path.stem.split('_')[0]
+    '''model = AttentionModel(init_g=50.0,
                           divide_out=0.2,
                           hidden_dim=768,
                           num_layers=5,
                           length=2,
-                          num_guidance_info=1).to('cuda')
+                          num_guidance_info=1).to('cuda')'''
     '''model = MultiConditionAttentionModel(init_g=100.0,
                                          divide_out=0.2,
                                          num_layers=5,
@@ -377,9 +379,16 @@ if __name__ == '__main__':
                                          num_layers=5,
                                          hidden_dim=768,
                                          heads=8).to('cuda')'''
+                                         
+    model = MultiConditionAttentionBLIPModel(init_g=50.0,
+                                             init_blip_g=50.0,
+                                             divide_out=0.1,
+                                             num_layers=5,
+                                             hidden_dim=768,
+                                             heads=8).to('cuda')
     model.load_state_dict(torch.load(model_path))
     model.eval()
     
-    main(model, time, 'decrease')
+    #main(model, time, 'decrease')
     #multi_condition_main(model, time,'constant')
-    #blip_main(model, time, 'decrease')
+    blip_main(model, time, 'decrease')

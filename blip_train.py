@@ -35,6 +35,7 @@ def train(config_path):
     name = f'''work-{timestamp}-BLIP-Condition
                num layer : {model_config['num_layers']}, 
                in size : {model_config['hidden_dim']},
+               heads : {model_config['heads']},
                pnp : {loss_config['pnp_injection_rate']},
                lambda_text : {loss_config['lambda_text']}, 
                lambda_structure : {loss_config['lambda_structure']},

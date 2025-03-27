@@ -261,15 +261,17 @@ class BLIPLoss(nn.Module):
         for p in self.clip_model.parameters():
             p.requires_grad=False
         
-        self.dino_model = AutoModel.from_pretrained('facebook/dinov2-large').to(self.device)
-        self.dino_processor = AutoImageProcessor.from_pretrained('facebook/dinov2-large')
-        for p in self.dino_model.parameters():
-            p.requires_grad=False 
+        if lambda_structure > 0:
+            self.dino_model = AutoModel.from_pretrained('facebook/dinov2-large').to(self.device)
+            self.dino_processor = AutoImageProcessor.from_pretrained('facebook/dinov2-large')
+            for p in self.dino_model.parameters():
+                p.requires_grad=False 
+            
+            self.structure_transform = self.dino_transform()
+            self.structure_loss_func = self.dino_loss
         
-        self.structure_transform = self.dino_transform()
-        self.structure_loss_func = self.dino_loss
-        
-        self.negative_clip_embedding = self.prompt_embeds(self.negative_prompt)
+        if negative_clip_use:
+            self.negative_clip_embedding = self.prompt_embeds(self.negative_prompt)
    
     @torch.no_grad()
     def prompt_embeds(self, prompts):
@@ -365,6 +367,7 @@ class BLIPLoss(nn.Module):
 
         from_clip_loss, from_clip_cs = self.clip_loss(gen_images, from_clip_embedding)
         to_clip_loss, clip_cs = self.clip_loss(gen_images, to_clip_embedding)
+        clip_cs = torch.cat([from_clip_cs, clip_cs])
         
         clip_loss = self.lambda_blip*from_clip_loss + self.lambda_text*to_clip_loss
         if self.negative_clip_use:
@@ -373,17 +376,20 @@ class BLIPLoss(nn.Module):
             negative_clip_loss = 1-negative_clip_loss
             clip_loss = clip_loss+negative_clip_loss*self.lambda_negative
             
+        if self.lambda_structure > 0:
+            structure_loss, dino_cs = self.structure_loss_func(real_image_tensor, gen_images)
             
-        structure_loss, dino_cs = self.structure_loss_func(real_image_tensor, gen_images)
-        
-        if self.dino_threshold > 0:
-            structure_loss = torch.sqrt((structure_loss - self.dino_threshold)**2)
-        
-        
-        loss = clip_loss + self.lambda_structure*structure_loss
+            if self.dino_threshold > 0:
+                structure_loss = torch.sqrt((structure_loss - self.dino_threshold)**2)
 
-        clip_cs = torch.cat([from_clip_cs, clip_cs])
+            loss = clip_loss + self.lambda_structure*structure_loss 
+        else:
+            loss = clip_loss
+            dino_cs = torch.zeros_like(from_clip_cs)
+            
         return loss, gen_images, clip_cs, dino_cs
+            
+        
             
 
 class ZeroShotLoss(nn.Module):
