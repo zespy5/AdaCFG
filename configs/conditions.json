@@ -1,5 +1,12 @@
 {
-  "daytime": [
+  "clear day": [
+    "a clear day",
+    "a photograph of a street on a clear day.",
+    "The road stretches under a bright sky.",
+    "The street is warm and clear.",
+    "Sunlight fills the open road.",
+    "A few soft clouds float above the street.",
+    "The road is calm in the midday heat.",
     "The street is bright under the daytime sky.",
     "The daytime sun shines directly on the road.",
     "Light clouds drift above the quiet daytime street.",
@@ -7,45 +14,87 @@
     "The street feels calm in the midday daylight."
   ],
   "night": [
+    "night",
+    "a photograph of a street at night",
+    "The street is quiet under dim lights.",
+    "The road is dark with only a few distant lights.",
+    "Late at night, the road feels empty and still.",
+    "Faint city lights glow along the quiet street.",
+    "Dim lights trace the quiet path through the darkness.",
     "The street is quiet under the night sky.",
     "The road is dark with only a few night lights.",
-    "Late at night, the road feels empty and still.",
+    "The air is still under the night sky.",
     "Faint city lights glow along the night street.",
     "A few headlights pass through the silent night road."
   ],
   "sunset": [
+    "sunset",
+    "a photograph of a street at sunset",
+    "The road glows softly in the evening light.",
+    "A warm orange hue covers the quiet street.",
+    "The setting sun casts a golden tone on the road.",
+    "The sky above the road fades from red to purple.",
+    "Dusk settles slowly over the empty street.",
     "The road glows softly under the sunset sky.",
     "A warm orange hue covers the sunset street.",
     "The setting sun casts a golden tone on the sunset road.",
     "The sky above the street turns red during sunset.",
     "Dusk settles slowly over the sunset road."
   ],
-  "rain": [
+  "rainy day": [
+    "a rainy day",
+    "a photograph of a street on a rainy day.",
+    "Heavy rain pours down, soaking everything in sight.",
+    "The street is slick under steady rainfall.",
+    "The road floods under the pounding rain.",
+    "A curtain of rain falls from the sky without pause.",
+    "Light rain continues to fall on the quiet street.",
     "Raindrops scatter across the rainy street.",
     "The street is slick under steady rain.",
-    "Dark clouds gather above the rainy road.",
+    "Wet air and steady rainfall fill the space.",
     "The road glistens with fresh rainwater during the rain.",
     "Light rain continues to fall on the rainy street."
   ],
-  "fog": [
+  "foggy day": [
+    "a foggy day",
+    "a photograph of a street on a foggy day.",
+    "The road fades into a thick white mist.",
+    "A dense fog covers the empty street.",
+    "The street is hidden behind a wall of fog.",
+    "Soft mist lingers low over the road.",
+    "The road is barely visible through the heavy fog.",
     "The road fades into thick fog.",
     "A dense fog covers the foggy street.",
-    "The street is hidden behind a wall of fog.",
+    "A veil of mist blurs the surroundings.",
     "Soft fog lingers low over the foggy road.",
-    "The road is barely visible through the heavy fog."
+    "The fog hangs thick, hiding distant shapes."
   ],
-  "snow": [
-    "Snow blankets the snowy road in soft white.",
+  "snowy day": [
+    "a snowy day",
+    "a photograph of a street on a snowy day.",
+    "Snow blankets the road in soft white.",
     "The street is covered in a thin layer of snow.",
-    "Light snowflakes drift onto the snowy road.",
+    "Snow falls in quiet, endless rhythm.",
     "The road is icy and dusted with fresh snow.",
+    "Snow falls steadily over the empty street.",
+    "Cold air carries the scent of fresh snow.",
+    "The surface glows faintly under soft snowfall.",
+    "Light snowflakes drift onto the snowy road.",
+    "Snow falls quietly under a pale gray sky, covering everything in white.",
     "Snow falls steadily over the snowy street."
   ],
-  "cloudy": [
+  "cloudy day": [
+    "a cloudy day",
+    "a photograph of a street on a cloudy day.",
+    "Gray clouds spread over the quiet road.",
+    "The street is dull under an overcast sky.",
+    "A thick cloud layer covers the road above.",
+    "The air feels cool under the cloudy sky.",
+    "The road sits beneath a sky full of gray clouds.",
     "Gray clouds spread over the cloudy road.",
     "The street is dull under the cloudy sky.",
     "A thick cloud layer covers the cloudy street.",
-    "The air feels cool under the cloudy sky.",
-    "The road sits beneath a sky full of cloudy gray clouds."
+    "The sky is blanketed in soft gray.",
+    "Clouds drift slowly in a calm, overcast sky."
   ]
 }

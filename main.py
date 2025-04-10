@@ -57,16 +57,16 @@ def main(model, model_number, grad):
     save_root = Path('check_valid')
     save_root.mkdir(exist_ok=True)
 
-    save_valid = save_root/f'val-zero-shot-{model_number}-39-1'
+    save_valid = save_root/f'val-zero-shot-{model_number}'
     save_valid.mkdir(exist_ok=True)
     
 
-    pnp = PnPPipeline(pnp_attn_t=0.95,
-                      pnp_f_t=0.95)
+    pnp = PnPPipeline(pnp_attn_t=0.9,
+                      pnp_f_t=0.9)
     guidance_scheduler = GuidanceScheduler(gradient=grad)
     
     data_root = Path('image_data/eval')
-    image_dirs = sorted([*data_root.glob('*')])[:30]
+    image_dirs = sorted([*data_root.glob('*')])
     
     
     for img_dir in tqdm(image_dirs):
@@ -79,7 +79,6 @@ def main(model, model_number, grad):
         image.save(save_origin_image)
         image_embedding = image_clip_embeds(image)
         for k,v in conditions.items():
-            v=v[:10]
             save_category = save_images/k
             save_category.mkdir(exist_ok=True)
             batch_size = len(v)
@@ -111,27 +110,22 @@ def main(model, model_number, grad):
 def main(model, model_number,grad):
 
     
-    from_prompt = 'a photograph of a street'
-    conditions = [' on a summer day',
-                ' on a spring day',
-                ' on a winter day',
-                ' on an autumn day',
+    from_prompt = ''
+    conditions = [
                 ' on a rainy day',
                 ' on a foggy day',
                 ' on a snowy day',
                 ' on a clear day',
                 ' on a cloudy day',
-                ' on a windy day',
                 ' at night time',
-                ' at sunset',
-                ' at daytime']
+                ' at sunset',]
 
     conditions = [from_prompt+con for con in conditions]
     to_clip_embedding = prompt_embeds(conditions)
     save_root = Path('check_valid')
     save_root.mkdir(exist_ok=True)
 
-    save_valid = save_root/f'val-{model_number}'
+    save_valid = save_root/f'val-{model_number}-simple'
     save_valid.mkdir(exist_ok=True)
 
 
@@ -358,16 +352,17 @@ def blip_main(model, model_number, grad):
 
     
 if __name__ == '__main__':
-    #model_path = Path('ckpts/0320204349/39_model.pt')
-    #time = model_path.as_posix().split('/')[-2]
-    model_path = Path('ckpts/0326180211_model.pt')
-    time = model_path.stem.split('_')[0]
-    '''model = AttentionModel(init_g=50.0,
-                          divide_out=0.2,
+    model_path = Path('ckpts/0331141023/21_model.pt')
+    time = model_path.as_posix().split('/')[-2]
+    #model_path = Path('ckpts/0326180211_model.pt')
+    #time = model_path.stem.split('_')[0]
+    model = AttentionModel(init_g=50.0,
+                          divide_out=0.1,
                           hidden_dim=768,
-                          num_layers=5,
+                          num_layers=4,
+                          head=4,
                           length=2,
-                          num_guidance_info=1).to('cuda')'''
+                          num_guidance_info=1).to('cuda')
     '''model = MultiConditionAttentionModel(init_g=100.0,
                                          divide_out=0.2,
                                          num_layers=5,
@@ -380,15 +375,15 @@ if __name__ == '__main__':
                                          hidden_dim=768,
                                          heads=8).to('cuda')'''
                                          
-    model = MultiConditionAttentionBLIPModel(init_g=50.0,
+    '''model = MultiConditionAttentionBLIPModel(init_g=50.0,
                                              init_blip_g=50.0,
                                              divide_out=0.1,
                                              num_layers=5,
                                              hidden_dim=768,
-                                             heads=8).to('cuda')
+                                             heads=8).to('cuda')'''
     model.load_state_dict(torch.load(model_path))
     model.eval()
     
-    #main(model, time, 'decrease')
+    main(model, time, 'constant')
     #multi_condition_main(model, time,'constant')
-    blip_main(model, time, 'decrease')
+    #blip_main(model, time, 'decrease')

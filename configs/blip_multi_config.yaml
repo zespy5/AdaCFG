@@ -15,7 +15,7 @@ lr_lambda : 0.5
 origin_alpha : 0 
 
 model:
-    init_blip_g : 50.0
+    init_blip_g : 20.0
     init_g : 50.0
     divide_out : 0.1
     hidden_dim : 768
@@ -25,7 +25,7 @@ model:
 
 loss:
     negative_prompt: 'ugly, blurry, low resolution, unrealistic, paint, distortion'
-    lambda_text : 0.9
+    lambda_text : 0.8
     lambda_structure : 0.0
     lambda_blip : 0.1
     lambda_negative : 1.0

@@ -261,7 +261,7 @@ def blip_eval(model,
             portion2 = 1-portion1
             portion = torch.cat([portion1, portion2], dim=1)
             
-            sd_text_embedding = torch.cat([sd_text_embedding, blip_sd_embedding])
+            sd_text_embedding = torch.cat([blip_sd_embedding, sd_text_embedding])
             
             loss, gen_images, _ccs, _dcs = criterion(real_image_tensor=real_image_tensor,
                                                 from_clip_embedding=blip_clip_embedding,

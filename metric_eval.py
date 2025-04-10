@@ -18,31 +18,40 @@ def main(name):
 
         origin_image_path = _image/'origin.png'
         origin_image = Image.open(origin_image_path)
-        for gen in _image.glob('g*'):
-            gen_image = Image.open(gen)
-            guidance = gen.stem.split('-')[1]
-            to_prompt = gen.stem.split('-')[-1].replace('a photograph of a street','')
-            
-            _metrics = {'guidance': guidance}
-            
-            _metrics['image_name'] = image_name
-            
+        for category in _image.glob('*'):
+            cat = category.stem
+            for gen in category.glob('*'):
+                gen_image = Image.open(gen)
+                guidance = float(gen.stem.split('-')[1].replace('_','.'))
+                to_prompt = gen.stem.split('-')[-1]
+                positive_prompt = f"{cat}, city street, well-structured, colourful, realistic, high resolution"
+                negative_prompt ='ugly, blurry, low resolution, unrealistic, paint, distorttion, black and white photograph'
+                _metrics = {'guidance': guidance}
+                
+                _metrics['image_name'] = image_name
+                
 
-            clip_score = Clip(gen_image, to_prompt)
-            _metrics['clip'] = clip_score
-            total_clip += clip_score
-            clip_score = Clip(gen_image, 'ugly, blurry, low res, unrealistic, paint, distorttion, black and white')
-            _metrics['negative clip'] = clip_score
-            total_neg_clip += clip_score
-            dino_score = Dino(origin_image, gen_image)
-            _metrics['dino'] = dino_score
-            total_dino +=dino_score
-            metric_dict[gen.as_posix()] = _metrics
+                clip_score = Clip(gen_image, to_prompt)
+                _metrics['clip'] = clip_score
+                total_clip += clip_score
+                
+                p_clip_score = Clip(gen_image, positive_prompt)
+                _metrics['positive clip'] = p_clip_score
+                
+                n_clip_score = Clip(gen_image, negative_prompt)
+                _metrics['negative clip'] = n_clip_score
+
+                clip_iqa = p_clip_score/(p_clip_score+n_clip_score)
+                _metrics['clip iqa'] = clip_iqa
+                 
+                dino_score = Dino(origin_image, gen_image)
+                _metrics['dino'] = dino_score
+                total_dino +=dino_score
+                metric_dict[gen.as_posix()] = _metrics
     instance = len(metric_dict)
     mean_clip = total_clip/instance
-    mean_neg_clip = total_neg_clip/instance
     mean_dino = total_dino/instance
-    print(mean_clip, mean_neg_clip, mean_dino)
+    print(mean_clip, mean_dino)
     df = pd.DataFrame.from_dict(metric_dict, orient='index')
     df.index.name = 'file name'
     
@@ -50,4 +59,4 @@ def main(name):
     df.to_csv(csv_path)
     
 if __name__ == '__main__':
-    main('val-0310114459')
+    main('val-zero-shot-0331141023')
