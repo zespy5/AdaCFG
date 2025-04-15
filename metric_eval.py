@@ -59,4 +59,4 @@ def main(name):
     df.to_csv(csv_path)
     
 if __name__ == '__main__':
-    main('val-zero-shot-0331141023')
+    main('ip2p-guidance')

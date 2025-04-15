@@ -24,7 +24,7 @@ class Loss(nn.Module):
                  device :str = 'cuda',
                  clip_ds_use : bool = True,
                  negative_clip_use : bool = True,
-                 gradient : Literal['increase', 'decrease', 'constant'] = 'increase',
+                 gradient : Literal['increase', 'decrease', 'constant', 'sine'] = 'increase',
                  schedule_method : Literal['cosine', 'linear'] = 'cosine',
                  **kwargs
                  ):

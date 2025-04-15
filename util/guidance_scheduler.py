@@ -50,7 +50,7 @@ class GuidanceScheduler(DDIMScheduler):
     def __init__(self,
                  num_train_timesteps: int = 1000,
                  n_timestep: int = 50,
-                 gradient : Literal['increase', 'decrease', 'constant'] = 'increase',
+                 gradient : Literal['increase', 'decrease', 'constant', 'sine'] = 'increase',
                  schedule_method : Literal['cosine', 'linear'] = 'cosine',
                  device : str = 'cuda',
                  ):
@@ -73,6 +73,15 @@ class GuidanceScheduler(DDIMScheduler):
         alphas_cumprod = torch.cumprod(alphas, dim=0)
         
         return alphas_cumprod
+    
+    @torch.no_grad()
+    def sine_schedule(self):
+        
+        x = torch.linspace(0, torch.pi, self.num_train_timesteps, dtype=torch.float32)
+        alphas = torch.sin(x)**2
+        
+        return alphas
+        
         
         
     def get_guidance_scales(self, schedule_info : torch.Tensor)->torch.Tensor:
@@ -84,11 +93,14 @@ class GuidanceScheduler(DDIMScheduler):
 
         timesteps = self.timesteps.repeat(batch_size,1)
         
-        scheduler = self.schedule().unsqueeze(0).repeat(batch_size,1)
+        if self.gradient=='sine':
+            scheduler = self.sine_schedule().unsqueeze(0).repeat(batch_size,1)
+        else:
+            scheduler = self.schedule().unsqueeze(0).repeat(batch_size,1)
 
         selected_schedulers = torch.gather(scheduler,1, timesteps).to(self.device)
         selected_schedulers = selected_schedulers.flip(1) if self.gradient=='decrease' else selected_schedulers
-        
+
         schedulers = schedule_info*selected_schedulers
         schedulers = torch.where(schedulers<1, 1.0, schedulers)
 

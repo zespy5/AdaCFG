@@ -10,7 +10,7 @@ eval_latent_data : 'merged_latents_forwards/eval_latents.pt'
 eval_embedding_data : 'merged_latents_forwards/zero-shot-20_eval_embeddings.pt'
 data_length : 500
 batch_size : 5
-learning_rate : 1.0e-7
+learning_rate : 5.0e-7
 lr_lambda : 0.7
 origin_alpha : 0 
 
@@ -34,7 +34,7 @@ loss:
     pnp_injection_rate : 0.9
     clip_ds_use : False
     negative_clip_use : True
-    gradient : 'decrease'
+    gradient : 'increase'
     schedule_method : 'cosine'
 
 
