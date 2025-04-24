@@ -404,6 +404,7 @@ class ZeroShotLoss(nn.Module):
                  num_condition : int = 3,
                  pnp_injection_rate : float = 0.9,
                  negative_clip_use : bool = True,
+                 image_size : int = 512,
                  gradient : Literal['increase', 'decrease', 'constant'] = 'increase',
                  schedule_method : Literal['cosine', 'linear'] = 'cosine',
                  device :str = 'cuda',
@@ -426,7 +427,8 @@ class ZeroShotLoss(nn.Module):
         self.pipeline = PnPPipeline(device=self.device,
                                     pnp_attn_t=self.pnp_injection_rate,
                                     pnp_f_t=self.pnp_injection_rate,
-                                    tensor_out=True)
+                                    tensor_out=True,
+                                    image_size=image_size)
         
         self.guidance_scheduler = GuidanceScheduler(gradient=gradient,
                                                     schedule_method=schedule_method,

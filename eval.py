@@ -362,16 +362,17 @@ def zero_shot_eval(model,
             mean_ccs = mean_ccs.detach().cpu().numpy()
             struc_dcs = _dcs.detach().cpu().numpy()
             
-            real_imgs = [T.ToPILImage()(latent) for latent in real_image_tensor]
-            edited_imgs = [T.ToPILImage()(latent) for latent in gen_images]
-            for a in range(len(edited_imgs)):
-                str_w_ccs = f'{condition_ccs.item(a):.2f}'.replace('.','_')
-                str_m_ccs = f'{mean_ccs.item(a):.2f}'.replace('.','_')
-                str_dcs = f'{struc_dcs.item(a):.2f}'.replace('.','_')
-                s = save_dir/f'{idx.item(a):04}-{int(preds.item(a))}-{selected_prompts[a]}-{selected_conditions[a]}-{str_w_ccs}-{str_m_ccs}-{str_dcs}.png'
-                edited_imgs[a].save(s)
-                save_origin_img = save_dir/f'{idx.item(a):04}-real_image.png'
-                real_imgs[a].save(save_origin_img)
+            if i%2==0:
+                real_imgs = [T.ToPILImage()(latent) for latent in real_image_tensor]
+                edited_imgs = [T.ToPILImage()(latent) for latent in gen_images]
+                for a in range(len(edited_imgs)):
+                    str_w_ccs = f'{condition_ccs.item(a):.2f}'.replace('.','_')
+                    str_m_ccs = f'{mean_ccs.item(a):.2f}'.replace('.','_')
+                    str_dcs = f'{struc_dcs.item(a):.2f}'.replace('.','_')
+                    s = save_dir/f'{idx.item(a):04}-{int(preds.item(a))}-{selected_prompts[a]}-{selected_conditions[a]}-{str_w_ccs}-{str_m_ccs}-{str_dcs}.png'
+                    edited_imgs[a].save(s)
+                    save_origin_img = save_dir/f'{idx.item(a):04}-real_image.png'
+                    real_imgs[a].save(save_origin_img)
 
             total_loss += loss.item()
         epoch_loss = total_loss/len(eval_dataloader)

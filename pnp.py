@@ -25,7 +25,8 @@ class PnPPipeline(nn.Module):
                  pnp_f_t : float = 0.9,
                  blip_use : bool = False,
                  blip_init_text :str = "a photography of",
-                 tensor_out : bool = False
+                 tensor_out : bool = False,
+                 image_size : int = 512,
                  ):
         super().__init__()
 
@@ -37,6 +38,7 @@ class PnPPipeline(nn.Module):
         self.pnp_attn_t = int(n_timestep*pnp_attn_t)
         self.pnp_f_t = int(n_timestep*pnp_f_t)
         self.tensor_out = tensor_out
+        self.image_size = image_size
         
 
         model_key = "stabilityai/stable-diffusion-2-1-base"
@@ -325,7 +327,7 @@ class PnPPipeline(nn.Module):
         
     
     def load_img(self, image_path):
-        image_pil = Image.open(image_path).convert("RGB").resize((512,512))
+        image_pil = Image.open(image_path).convert("RGB").resize((self.image_size, self.image_size))
         image = T.ToTensor()(image_pil).unsqueeze(0).to(self.device)
         return image
 

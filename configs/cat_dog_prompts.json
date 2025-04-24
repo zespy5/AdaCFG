@@ -1,0 +1,18 @@
+{
+    "dog": [
+    "A photo of a dog.",
+    "A dog is sitting.",
+    "A dog is running.",
+    "A dog is sleeping.",
+    "A dog is walking.",
+    "A dog is playing."
+  ],
+  "cat": [
+    "A photo of a cat.",
+    "A cat is sitting.",
+    "A cat is running.",
+    "A cat is sleeping.",
+    "A cat is walking.",
+    "A cat is playing."
+  ]
+  }

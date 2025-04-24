@@ -66,7 +66,7 @@ def main(model, model_number, grad):
     guidance_scheduler = GuidanceScheduler(gradient=grad)
     
     data_root = Path('image_data/eval')
-    image_dirs = sorted([*data_root.glob('*')])
+    image_dirs = sorted([*data_root.glob('*')])[:50]
     
     
     for img_dir in tqdm(image_dirs):
@@ -352,14 +352,14 @@ def blip_main(model, model_number, grad):
 
     
 if __name__ == '__main__':
-    model_path = Path('ckpts/0331141023/21_model.pt')
+    model_path = Path('ckpts/0416222403/47_model.pt')
     time = model_path.as_posix().split('/')[-2]
     #model_path = Path('ckpts/0326180211_model.pt')
     #time = model_path.stem.split('_')[0]
     model = AttentionModel(init_g=50.0,
                           divide_out=0.1,
                           hidden_dim=768,
-                          num_layers=4,
+                          num_layers=2,
                           head=4,
                           length=2,
                           num_guidance_info=1).to('cuda')
@@ -384,6 +384,6 @@ if __name__ == '__main__':
     model.load_state_dict(torch.load(model_path))
     model.eval()
     
-    main(model, time, 'constant')
+    main(model, time, 'decrease')
     #multi_condition_main(model, time,'constant')
     #blip_main(model, time, 'decrease')

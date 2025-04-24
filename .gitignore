@@ -9,6 +9,6 @@ wandb
 ckpts
 train
 # image data
-image_data
+*image_data
 *.ipynb
 check*

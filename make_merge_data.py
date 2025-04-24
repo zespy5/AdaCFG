@@ -29,8 +29,11 @@ def generate_prompt(image_dirs):
 
     return captions
 
-def main():    
+
+
+def main(cat):    
     
+
     loss = Loss(device='cuda',
                    blip_use=True)
     pipe = loss.pipeline
@@ -40,13 +43,18 @@ def main():
     large_clip_image_embedding = loss.image_clip_embeds
     large_clip_text_embedding = loss.prompt_embeds
     
-    large_conditions = get_json('configs/large_conditions.json')
     
+    large_conditions = get_json(f'configs/horse_prompts.json')
+
+    for key in large_conditions.values():
+        v = set(key)
+        print(len(v))
+        
     conditions = list(large_conditions.keys())
 
-    image_dir = Path('image_data')
-    train_dir = image_dir/'train'
-    eval_dir = image_dir/'eval'
+    image_dir = Path(f'unpaired_image_data/{cat}')
+    train_dir = image_dir/f'train'
+    eval_dir = image_dir/f'valid'
 
     train_images = sorted([*train_dir.glob('*')])
     eval_images  = sorted([*eval_dir.glob('*')])
@@ -96,9 +104,10 @@ def main():
 
         return config
 
+    cat_name = cat.replace('_','-')
     save_root = Path('merged_latents_forwards')
-    train_save = save_root/'zero-shot-20_train_embeddings.pt'
-    eval_save = save_root/'zero-shot-20_eval_embeddings.pt'
+    train_save = save_root/f'{cat_name}_train_embeddings.pt'
+    eval_save = save_root/f'{cat_name}_valid_embeddings.pt'
     
     train_data = make_config(train_images)
     eval_data = make_config(eval_images)
@@ -109,7 +118,11 @@ def main():
 
 
 if __name__ == "__main__": 
-    main()
+    #category = ['summer_winter','day_night','cat_dog', 'horse_zebra']
+    #category = ['day_night']
+    category = ['zebra']
+    for cat in category:
+        main(cat)
                 
  
                 

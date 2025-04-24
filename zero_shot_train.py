@@ -49,6 +49,7 @@ def train(config_path):
                s_text {struct_text}, 
                negative_clip {loss_config['negative_clip_use']}, 
                guidance_schedule {loss_config['gradient']},
+               image size {loss_config['image_size']},
                data len {config['data_length']}'''
                ############ WANDB INIT #############
     print("--------------- Wandb SETTING ---------------")
@@ -210,6 +211,11 @@ def train(config_path):
                 
 
 if __name__ == '__main__':
-    train('configs/zero_shot_config.yaml')
+    #train('configs/zero_shot_config.yaml')
+    #train('configs/cat_dog_config.yaml')
+    #train('configs/horse2zebra_config.yaml')
+    train('configs/zebra2horse_config.yaml')
+    #train('configs/summer_winter_config.yaml')
+    #train('configs/day_night_config.yaml')
             
             

@@ -22,6 +22,24 @@ imagenet_norm = T.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))
 global_resize_transform = T.Resize(224, max_size=480)
 totensor = T.ToTensor()
 
+@torch.no_grad()
+def prompt_embeds(prompts):
+    clip_inputs = clip_processor(text=prompts,
+                                        return_tensors="pt", 
+                                        padding=True)
+    text_features = clip_model.get_text_features(clip_inputs["input_ids"].to('cuda'),
+                                                        clip_inputs["attention_mask"].to('cuda'))
+        
+    return text_features
+
+@torch.no_grad()
+def image_clip_embeds(image):
+    clip_inputs = clip_processor(images=image,
+                                        return_tensors="pt", 
+                                        padding=True)
+    image_features = clip_model.get_image_features(clip_inputs["pixel_values"].to('cuda'))
+        
+    return image_features
 
 @torch.no_grad()
 def Clip(image, prompt):
@@ -42,63 +60,38 @@ def Clip(image, prompt):
 
     return sim
 @torch.no_grad()
-def Clip_ds(real_image, gen_image, from_prompt, to_prompt):
+def Clip_txt_mean(prompts):
     
-    clip_inputs = clip_processor(text=[from_prompt, to_prompt],
-                                 images= [real_image,gen_image],
+    clip_inputs = clip_processor(text=prompts,
                                  return_tensors="pt",
                                  padding=True)
     
     texts = clip_inputs['input_ids'].to('cuda')
     attn_mask = clip_inputs['attention_mask'].to('cuda')
-    images = clip_inputs['pixel_values'].to('cuda')
     text_feautre = clip_model.get_text_features(texts, attn_mask)
-    image_features = clip_model.get_image_features(images)
 
-    text1, text2 = text_feautre.chunk(2)
-    image1,image2 = image_features.chunk(2)
+    text_emb = text_feautre.mean(dim=0).squeeze()
+
     
-    text_direction = text2 - text1
-    image_direction = image2 - image1
-    
-    sim = F.cosine_similarity(text_direction, image_direction, dim=1).item()
-    
-    return sim
+    return text_emb
 
 @torch.no_grad()
-def Clip_ds2(conditions, real_image, gen_image, from_prompt, to_prompt):
+def Clip_txt_mean_sim(text_emb, gen_image):
     
-    prompt_candidates = [from_prompt+con for con in conditions]
-    prompt_candidates.append(to_prompt)
 
-    clip_inputs = clip_processor(text=prompt_candidates,
-                                 images= [real_image,gen_image],
+
+    clip_inputs = clip_processor(images= gen_image,
                                  return_tensors="pt",
                                  padding=True)
     
-    text = clip_inputs['input_ids'].to('cuda')
-    attn_mask = clip_inputs['attention_mask'].to('cuda')
+
     images = clip_inputs['pixel_values'].to('cuda')
-    text_features = clip_model.get_text_features(text, attn_mask)
     image_features = clip_model.get_image_features(images)
+    text_emb = text_emb.unsqueeze(0)
 
-    to_text_features = text_features[-1].unsqueeze(0)
-    candidates = text_features[:-1]
+    cos_sim = F.cosine_similarity(text_emb,image_features, dim=1)
 
-    image1,image2 = image_features.chunk(2)
-    
-    image_direction = image2 - image1
-    
-    from_image = image1.repeat(len(conditions),1)
-
-    cos_sim = F.cosine_similarity(candidates, from_image, dim=1)
-    max_idx = torch.argmax(cos_sim)
-    from_text_feature = candidates[max_idx].unsqueeze(0)
-    text_direction = to_text_features- from_text_feature
-
-    sim = F.cosine_similarity(text_direction, image_direction, dim=1).item()
-
-    return sim, max_idx.item()
+    return cos_sim.item()
   
 @torch.no_grad()
 def Dino(real, gen):
