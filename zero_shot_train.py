@@ -29,10 +29,11 @@ def train(config_path):
     
     struct_text = config['train_embedding_data'].split('/')[-1].split('_')[0]
     clip_loss = "clip_ds" if loss_config['clip_ds_use'] else "clip"
-    
+    architecture = "Attention" if config['Attention'] else "FFNN"
     timestamp = get_timestamp()
     
     name = f'''work-{timestamp}-Zero Shot
+               Model : {architecture},
                num layer : {model_config['num_layers']}, 
                in size : {model_config['hidden_dim']},
                heads : {model_config['heads']},
@@ -83,7 +84,11 @@ def train(config_path):
     
     domains = train_dataset.conditions
     
-    model = AttentionModel(**model_config).to(device)
+    if config['Attention']:
+        model = AttentionModel(**model_config).to(device) 
+    else:
+        model_config['hidden_dim'] = model_config['hidden_dim']*model_config['length']
+        model = GuidanceModel(**model_config).to(device) 
 
     optimizer = torch.optim.Adam(model.parameters(), lr)
     optimizer_scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer=optimizer,
@@ -129,9 +134,12 @@ def train(config_path):
                 to_clip_embedding = to_clip_embedding.to(device)
                 
 
-                model_input = torch.cat([image_embedding,
-                                         #condition_mean,
-                                         to_clip_embedding], dim=1).view(len(idx), model_config['length'], -1)
+                if config['Attention']:
+                    model_input = torch.cat([image_embedding,
+                                             to_clip_embedding], dim=1).view(len(idx), model_config['length'], -1)
+                else:
+                    model_input = torch.cat([image_embedding,
+                                             to_clip_embedding], dim=1)
 
                 pred_ginit = model(model_input)
                 
@@ -195,7 +203,7 @@ def train(config_path):
                                           domains=domains,
                                           save_image_path=f'Evalutate_images_results/{timestamp}',
                                           epoch=epoch,
-                                          length=model_config['length'],
+                                          config=config,
                                           device=device)
         wandb.log(
                 {   "epoch":epoch+1,
@@ -211,10 +219,10 @@ def train(config_path):
                 
 
 if __name__ == '__main__':
-    #train('configs/zero_shot_config.yaml')
-    #train('configs/cat_dog_config.yaml')
+    train('configs/zero_shot_config.yaml')
+    #train('configs/male_config.yaml')
     #train('configs/horse2zebra_config.yaml')
-    train('configs/zebra2horse_config.yaml')
+    #train('configs/zebra2horse_config.yaml')
     #train('configs/summer_winter_config.yaml')
     #train('configs/day_night_config.yaml')
             

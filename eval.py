@@ -303,8 +303,8 @@ def zero_shot_eval(model,
                    domains,
                    save_image_path:str,
                    epoch,
-                   length,
-                   device,
+                   config,
+                   device
                    ):
     total_loss = 0
     
@@ -341,10 +341,13 @@ def zero_shot_eval(model,
             sd_text_embedding = sd_text_embedding.to(device)
             to_clip_embedding = to_clip_embedding.to(device)
 
-            model_input = torch.cat([image_embedding,
-                                     #condition_mean,
-                                     to_clip_embedding], dim=1).view(len(idx), length, -1)
-
+            if config['Attention']:
+                model_input = torch.cat([image_embedding,
+                                            to_clip_embedding], dim=1).view(len(idx), config['model']['length'], -1)
+            else:
+                model_input = torch.cat([image_embedding,
+                                            to_clip_embedding], dim=1)
+                    
             pred_ginit = model(model_input)
             
             

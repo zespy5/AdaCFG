@@ -2,13 +2,13 @@ seed : 1
 device : "cuda"
 
 #dataset
-train_data_root : './image_data/train'
-train_latent_data : 'merged_latents_forwards/train_latents.pt'
-train_embedding_data : 'merged_latents_forwards/zero-shot-50_train_embeddings.pt'
-eval_data_root : './image_data/eval'
-eval_latent_data : 'merged_latents_forwards/eval_latents.pt'
-eval_embedding_data : 'merged_latents_forwards/zero-shot-50_eval_embeddings.pt'
-data_length : 2000
+train_data_root : 'unpaired_image_data/male/train'
+train_latent_data : 'merged_latents_forwards/male_train_latents.pt'
+train_embedding_data : 'merged_latents_forwards/male_train_embeddings.pt'
+eval_data_root : 'unpaired_image_data/male/valid'
+eval_latent_data : 'merged_latents_forwards/male_valid_latents.pt'
+eval_embedding_data : 'merged_latents_forwards/male_valid_embeddings.pt'
+data_length : 1000
 batch_size : 5
 learning_rate : 1.0e-7
 lr_lambda : 0.8
@@ -32,11 +32,11 @@ loss:
     lambda_negative : 1.0
     dino_threshold : 0.0
     num_condition : 1
-    pnp_injection_rate : 0.9
+    pnp_injection_rate : 0.8
     clip_ds_use : False
     negative_clip_use : True
     image_size : 512
-    gradient : 'constant'
+    gradient : 'decrease'
     schedule_method : 'cosine'
 
 

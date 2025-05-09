@@ -50,6 +50,7 @@ class GuidanceScheduler(DDIMScheduler):
     def __init__(self,
                  num_train_timesteps: int = 1000,
                  n_timestep: int = 50,
+                 lower_bound: float = 1.0,
                  gradient : Literal['increase', 'decrease', 'constant', 'sine'] = 'increase',
                  schedule_method : Literal['cosine', 'linear'] = 'cosine',
                  device : str = 'cuda',
@@ -61,6 +62,7 @@ class GuidanceScheduler(DDIMScheduler):
         self.device = device
         self.gradient = gradient
         self.schedule_method = schedule_method
+        self.lower_bound = lower_bound
         
 
     @torch.no_grad()
@@ -102,6 +104,6 @@ class GuidanceScheduler(DDIMScheduler):
         selected_schedulers = selected_schedulers.flip(1) if self.gradient=='decrease' else selected_schedulers
 
         schedulers = schedule_info*selected_schedulers
-        schedulers = torch.where(schedulers<1, 1.0, schedulers)
+        schedulers = torch.where(schedulers<self.lower_bound, self.lower_bound, schedulers)
 
         return schedulers

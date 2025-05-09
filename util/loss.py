@@ -43,7 +43,8 @@ class Loss(nn.Module):
         
         self.pipeline = PnPPipeline(device=self.device,
                                     pnp_attn_t=self.pnp_injection_rate,
-                                    pnp_f_t=self.pnp_injection_rate,
+                                    pnp_f_t=0.8,
+                                    #pnp_f_t=self.pnp_injection_rate,
                                     tensor_out=True)
         
         self.guidance_scheduler = GuidanceScheduler(gradient=gradient,

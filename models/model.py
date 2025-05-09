@@ -7,54 +7,36 @@ from models.attn_module import *
 class GuidanceModel(nn.Module):
     def __init__(
         self,
-        init_g : Optional[float] = None,
-        divide_out : float = 0.1,
-        num_guidance_info : int = 1,
-        linear_in_size: Optional[int] = None,
-        num_mlp_layers: int = 2,
-        hidden_act: Literal["gelu", "mish", "selu"] = "gelu",
-        **kwargs
+        init_g : float = 50.0,
+        divide_out : float=0.1,
+        num_guidance_info : int=1,
+        num_layers : int=2,
+        hidden_dim : int=768,
+        **kwargs,
     ):
         super().__init__()
-        activates = {"gelu": nn.GELU(), "mish": nn.Mish(), "silu": nn.SiLU()}
-        
-        
+        self.init_g = init_g
         self.num_guidance_info = num_guidance_info
-        assert self.num_guidance_info==1 or self.num_guidance_info==2, 'The number of guidance info must be 1 or 2'
-        self.in_size = linear_in_size
-        self.hidden_act = hidden_act
-        self.num_mlp_layers = num_mlp_layers
+        self.hidden_dim = hidden_dim
+        self.num_layers = num_layers
         self.relu = nn.ReLU()
-    
-        
-        self.init_G = 50.0 if init_g is None else init_g
         self.divide_out = divide_out
 
-        self.MLP_modules = []
-        self.activate = activates[hidden_act]
-        for _ in range(self.num_mlp_layers):
-            self.MLP_modules.append(nn.Linear(self.in_size, self.in_size))
-            self.MLP_modules.append(self.activate)
+        self.ff_block = nn.ModuleList(
+            [FeedForward(hidden_dim, 2) for _ in range(num_layers)]
+        )
         
-        self.MLP_modules.append(nn.LayerNorm(self.in_size))
-        for _ in range(self.num_mlp_layers):
-            self.MLP_modules.append(nn.Linear(self.in_size, self.in_size // 2))
-            self.MLP_modules.append(self.activate)
-            self.in_size = self.in_size // 2
-
-        self.MLP = nn.Sequential(*self.MLP_modules)
-        self.layernorm = nn.LayerNorm(self.in_size)
-        self.out = nn.Linear(self.in_size, self.num_guidance_info)
+        self.W = nn.Linear(self.hidden_dim, self.num_guidance_info)
         
     def forward(self, x):
+        
+        for block in self.ff_block:
+            x = block(x)
 
-        out = self.MLP(x)
-        out = self.layernorm(out)
-        out = self.out(out)
-
+        out = self.W(x)
         out *=self.divide_out
         out = self.relu(2*(torch.sigmoid(out)-0.5))
-        out = out*self.init_G+1
+        out = out*self.init_g+1
         return out
         
     
@@ -84,18 +66,6 @@ class AttentionModel(nn.Module):
         
         self.W = nn.Linear(self.hidden_dim*length, self.num_guidance_info)
 
-    '''def forward(self, hidden_states):
-        batch_size = hidden_states.shape[0]
-        for block in self.attnblocks:
-            hidden_states = block(hidden_states)
-        
-        output = hidden_states.view(batch_size,-1)
-        output = self.W(output)
-        output = output*self.divide_out
-        
-        g_init = torch.sigmoid(output)*self.init_g +1
-        
-        return g_init '''  
      
     def forward(self, hidden_states):
         batch_size = hidden_states.shape[0]

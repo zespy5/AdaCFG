@@ -44,7 +44,7 @@ def main(cat):
     large_clip_text_embedding = loss.prompt_embeds
     
     
-    large_conditions = get_json(f'configs/horse_prompts.json')
+    large_conditions = get_json(f'configs/male_prompts.json')
 
     for key in large_conditions.values():
         v = set(key)
@@ -120,7 +120,7 @@ def main(cat):
 if __name__ == "__main__": 
     #category = ['summer_winter','day_night','cat_dog', 'horse_zebra']
     #category = ['day_night']
-    category = ['zebra']
+    category = ['male']
     for cat in category:
         main(cat)
                 

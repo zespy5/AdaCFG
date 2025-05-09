@@ -13,6 +13,7 @@ batch_size : 12
 learning_rate : 5.0e-7
 lr_lambda : 0.8
 origin_alpha : 0 
+Attention : True
 
 model:
     init_g : 100.0
@@ -26,7 +27,7 @@ model:
 loss:
     negative_prompt: 'ugly, blurry, low resolution, unrealistic, distortion'
     lambda_text : 0.5
-    lambda_structure : 0.1
+    lambda_structure : 0.05
     lambda_mean : 0.5
     lambda_negative : 1.0
     dino_threshold : 0.0

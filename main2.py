@@ -23,7 +23,8 @@ def main(model,
          latent_save_root,
          pnp_rate=0.9,
          image_size=256): 
-      
+    
+    from_domain = domains.split('2')[0]
     to_domain = domains.split('2')[1]
     
     save_root = Path('check_valid')
@@ -42,8 +43,8 @@ def main(model,
     image_dirs = sorted([*data_root.glob('*')])
     
     mean_embedding = Clip_txt_mean(conditions)
-    positive_prompt = f"a photo of a {to_domain} road"
-    negative_prompt = 'ugly, blurry, low resolution, unrealistic, paint, distortion, black and white photograph'
+    positive_prompt = f"a photo of a {to_domain}"
+    negative_prompt = f'ugly, blurry, low resolution, unrealistic, paint, distortion, black and white photograph, {from_domain}e'
     metric_dict={}
     
     for img_dir in tqdm(image_dirs):
@@ -73,7 +74,7 @@ def main(model,
         
         images = [img_dir]*batch_size
         outputs = pnp(image_dirs=images,
-                    negative_prompt='ugly, blurry, low resolution, unrealistic, paint, distortion',
+                    negative_prompt=f'ugly, blurry, low resolution, unrealistic, paint, distortion, {from_domain}',
                     prompts=[conditions],
                     guidance_scales=guidance,
                     latents_save_root=latent_save_root)
@@ -113,13 +114,13 @@ def main(model,
 
     
 if __name__ == '__main__':
-    model_path = Path('ckpts/best_ckpts/weather.pt')
-    domains = 'day2night'
+    model_path = Path('ckpts/best_ckpts/horse2zebra.pt')
+    domains = model_path.stem
     from_domain = domains.split('2')[0]
     to_domain = domains.split('2')[1]
     
     
-    model = AttentionModel(init_g=50.0,
+    model = AttentionModel(init_g=100.0,
                           divide_out=0.1,
                           hidden_dim=768,
                           num_layers=2,
@@ -130,26 +131,14 @@ if __name__ == '__main__':
     model.load_state_dict(torch.load(model_path))
     model.eval()
     
-    conditions = get_json(f'configs/conditions.json')
+    conditions = get_json(f'configs/zebra_prompts.json')
     prompts = conditions[to_domain]
     main(model=model, 
          domains=domains, 
          grad='decrease',
          conditions= prompts,
-         image_save_root=f'unpaired_image_data/weathers/{from_domain}',
-         latent_save_root=f'unpaired_image_data/day_night_latents/test_{from_domain}_latents_forward',
+         image_save_root=f'unpaired_image_data/horse_zebra/test_{from_domain}',
+         latent_save_root=f'unpaired_image_data/horse_zebra_latents/test_{from_domain}_latents_forward',
          pnp_rate=0.9,
-         image_size=512)
+         image_size=256)
     
-    from_domain = domains.split('2')[1]
-    to_domain = domains.split('2')[0]
-    prompts = conditions['clear day']
-    
-    main(model=model, 
-         domains='night2day', 
-         grad='decrease',
-         conditions= prompts,
-         image_save_root=f'unpaired_image_data/weathers/{from_domain}',
-         latent_save_root=f'unpaired_image_data/day_night_latents/test_{from_domain}_latents_forward',
-         pnp_rate=0.9,
-         image_size=512)

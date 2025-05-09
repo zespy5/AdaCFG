@@ -47,11 +47,12 @@ class FeedForward(nn.Module):
     
     def __init__(self,
                  hidden_dim:int,
+                 multiple_hidden : int=4,
                  ):
         super().__init__()
         
-        self.W1 = nn.Linear(hidden_dim, 4*hidden_dim)
-        self.W2 = nn.Linear(hidden_dim*4, hidden_dim)
+        self.W1 = nn.Linear(hidden_dim, multiple_hidden*hidden_dim)
+        self.W2 = nn.Linear(hidden_dim*multiple_hidden, hidden_dim)
         self.layer_norm = nn.LayerNorm(hidden_dim, 1e-6)
         self.activate = nn.GELU()
         

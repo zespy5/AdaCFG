@@ -8,9 +8,12 @@ import re
 from tqdm import tqdm
 from PIL import Image
 import numpy
+import pandas as pd
 from torch.nn.functional import cosine_similarity
 from util.utils import get_json
-
+from util.metric import (Clip, Dino, 
+                         Clip_txt_mean, Clip_txt_mean_sim, 
+                         prompt_embeds, image_clip_embeds)
 clip_model = CLIPModel.from_pretrained("openai/clip-vit-large-patch14").to('cuda')
 clip_processor = CLIPProcessor.from_pretrained("openai/clip-vit-large-patch14")
 image_processor = BlipProcessor.from_pretrained("Salesforce/blip-image-captioning-large") 
@@ -50,24 +53,41 @@ def image_clip_embeds(image):
     image_features = clip_model.get_image_features(clip_inputs["pixel_values"].to('cuda'))
         
     return image_features
-@torch.no_grad()
-def main(model, model_number, grad):   
+'''@torch.no_grad()
+def main(model, grad, model_number=0):   
+    condict = {'clear day':'a photo of a street on a clear day',
+                  'cloudy day':'a photo of a street on a cloudy day',
+                  'foggy day':'a photo of a street on a foggy day',
+                  'rainy day':'a photo of a street on a rainy day',
+                  'snowy day':'a photo of a street on a snowy day',
+                  'night':'a photo of a street at night',
+                  'sunset':'a photo of a street at sunset'}
     conditions = get_json('configs/conditions.json')
     
-    save_root = Path('check_valid')
+    save_root = Path('check_valid/ours17-2')
     save_root.mkdir(exist_ok=True)
 
-    save_valid = save_root/f'val-zero-shot-{model_number}'
+    save_valid = save_root/f'candidates'
     save_valid.mkdir(exist_ok=True)
     
+    save_pick = save_root/'picked'
+    save_pick.mkdir(exist_ok=True)
+    
+    for k in condict.values():
+        save_category = save_pick/k
+        save_category.mkdir(exist_ok=True)
 
     pnp = PnPPipeline(pnp_attn_t=0.9,
-                      pnp_f_t=0.9)
-    guidance_scheduler = GuidanceScheduler(gradient=grad)
+                      pnp_f_t=0.8)
+    guidance_scheduler = GuidanceScheduler(gradient=grad, 
+                                           lower_bound=3.0)
     
     data_root = Path('image_data/eval')
-    image_dirs = sorted([*data_root.glob('*')])[:50]
+    image_dirs = sorted([*data_root.glob('*')])
     
+    
+    negative_prompt = f'ugly, blurry, low resolution, unrealistic, paint, distortion, black and white photograph'
+    metric_dict={}
     
     for img_dir in tqdm(image_dirs):
         image_name = img_dir.stem
@@ -79,15 +99,15 @@ def main(model, model_number, grad):
         image.save(save_origin_image)
         image_embedding = image_clip_embeds(image)
         for k,v in conditions.items():
+            
             save_category = save_images/k
             save_category.mkdir(exist_ok=True)
             batch_size = len(v)
             
             to_clip_embedding = prompt_embeds(v)
             img_embs = image_embedding.repeat(batch_size,1)
-
-            model_input = torch.cat([img_embs,
-                                    to_clip_embedding], dim=1).view(batch_size, 2, -1)
+            mean_embedding = to_clip_embedding.mean(dim=0)
+            model_input = torch.cat([img_embs, to_clip_embedding], dim=1)
             guidance_value = model(model_input)
             guidance = guidance_scheduler.get_guidance_scales(guidance_value)
             
@@ -102,10 +122,131 @@ def main(model, model_number, grad):
             gen_images = outputs.images
             prompts = outputs.prompts[0]
 
+            losses = []
             for i in range(batch_size):
-                g = f'{guidance_values.item(i):.2f}'.replace('.','_')
-                save_gen_img = save_category/f'guid-{g}-prompt-{prompts[i]}.png'
+                m_clip = Clip_txt_mean_sim(mean_embedding, gen_images[i])
+                p_clip = Clip(gen_images[i], condict[k])
+                n_clip = Clip(gen_images[i], negative_prompt)
+                dino = Dino(image, gen_images[i])
+                loss = (1-p_clip) + n_clip + (1-dino)*0.15
+                g = guidance_values.item(i)
+                save_gen_img = save_category/f'prompt-{prompts[i]}.png'
                 gen_images[i].save(save_gen_img)
+                
+                _metrics = {'guidance': g,
+                        'mean clip': m_clip,
+                        'positive clip': p_clip,
+                        'negative clip': n_clip,
+                        'dino': dino}
+                losses.append(loss)
+                metric_dict[save_gen_img.as_posix()] = _metrics
+            min_loss = min(losses)
+            min_index = losses.index(min_loss)
+            min_image = gen_images[min_index]
+            save_picked_image = save_pick/condict[k]/f'{image_name}.png'
+            min_image.save(save_picked_image)
+            
+        df = pd.DataFrame.from_dict(metric_dict, orient='index')
+        df.index.name = 'file_name'
+        df.to_csv(save_valid/f'metrics.csv')'''
+        
+@torch.no_grad()
+def main(model, grad, model_number=0):   
+    condict = {'white_hair': "A photo of a man with white hair",
+               'red_hair': "A photo of a man with red dyed hair",
+               'blond_hair': "A photo of a man with blond hair",
+               'beard': "A photo of a man with a thick beard",
+               'dark_skin': "A photo of a man with dark skin",
+               'sad_expression': "A photo of a sad man",
+               'smiling_expression': "A photo of a man smiling"}
+    conditions = get_json('configs/male_conditions.json')
+    
+    save_root = Path('check_valid/man40')
+    save_root.mkdir(exist_ok=True)
+
+    save_valid = save_root/f'candidates'
+    save_valid.mkdir(exist_ok=True)
+    
+    save_pick = save_root/'picked'
+    save_pick.mkdir(exist_ok=True)
+    
+    for k in condict.values():
+        save_category = save_pick/k
+        save_category.mkdir(exist_ok=True)
+
+    pnp = PnPPipeline(pnp_attn_t=0.8,
+                      pnp_f_t=0.8)
+    guidance_scheduler = GuidanceScheduler(gradient=grad)
+    
+    data_root = Path('unpaired_image_data/male/test')
+    image_dirs = sorted([*data_root.glob('*')])
+    
+    
+    negative_prompt = f'ugly, blurry, low resolution, unrealistic, paint, distortion, black and white photograph'
+    metric_dict={}
+    
+    for img_dir in tqdm(image_dirs):
+        image_name = img_dir.stem
+        save_images = save_valid/image_name
+        save_images.mkdir(exist_ok=True)
+        
+        save_origin_image = save_images/'origin.png'
+        image = Image.open(img_dir)
+        image.save(save_origin_image)
+        image_embedding = image_clip_embeds(image)
+        for k,v in conditions.items():
+            
+            save_category = save_images/k
+            save_category.mkdir(exist_ok=True)
+            batch_size = len(v)
+            
+            to_clip_embedding = prompt_embeds(v)
+            img_embs = image_embedding.repeat(batch_size,1)
+            mean_embedding = to_clip_embedding.mean(dim=0)
+            model_input = torch.cat([img_embs, to_clip_embedding], dim=1)
+            guidance_value = model(model_input)
+            guidance = guidance_scheduler.get_guidance_scales(guidance_value)
+            
+            images = [img_dir]*batch_size
+            outputs = pnp(image_dirs=images,
+                        negative_prompt='ugly, blurry, low resolution, unrealistic, paint, distortion',
+                        prompts=[v],
+                        guidance_scales=guidance,
+                        latents_save_root='unpaired_image_data/male_latents/test_latents_forward')
+            
+            guidance_values = guidance_value.squeeze().cpu().numpy()
+            gen_images = outputs.images
+            prompts = outputs.prompts[0]
+
+            losses = []
+            for i in range(batch_size):
+                m_clip = Clip_txt_mean_sim(mean_embedding, gen_images[i])
+                p_clip = Clip(gen_images[i], condict[k])
+                n_clip = Clip(gen_images[i], negative_prompt)
+                dino = Dino(image, gen_images[i])
+                loss = (1-p_clip) + n_clip + (1-dino)*0.1
+                g = guidance_values.item(i)
+                save_gen_img = save_category/f'prompt-{prompts[i]}.png'
+                gen_images[i].save(save_gen_img)
+                
+                _metrics = {'guidance': g,
+                        'mean clip': m_clip,
+                        'positive clip': p_clip,
+                        'negative clip': n_clip,
+                        'dino': dino}
+                losses.append(loss)
+                metric_dict[save_gen_img.as_posix()] = _metrics
+            min_loss = min(losses)
+            min_index = losses.index(min_loss)
+            min_image = gen_images[min_index]
+            save_picked_image = save_pick/condict[k]/f'{image_name}.png'
+            min_image.save(save_picked_image)
+            
+        df = pd.DataFrame.from_dict(metric_dict, orient='index')
+        df.index.name = 'file_name'
+        df.to_csv(save_valid/f'metrics.csv')
+
+
 '''@torch.no_grad()
 def main(model, model_number,grad):
 
@@ -350,8 +491,23 @@ def blip_main(model, model_number, grad):
             save_gen_img = save_images/f'guid-{t_g}-{w_g}-prompt-{blip_prompts[i]}-{weather_prompts[i]}.png'
             gen_images[i].save(save_gen_img)  
 
-    
 if __name__ == '__main__':
+    model_path = Path('ckpts/best_ckpts/40_man.pt')
+    time = model_path.as_posix().split('/')[-2]
+
+    model = GuidanceModel(init_g=50.0,
+                          divide_out=0.1,
+                          hidden_dim=768*2,
+                          num_layers=5,
+                          num_guidance_info=1,
+                          lower_bound=1.0).to('cuda')
+
+    model.load_state_dict(torch.load(model_path))
+    model.eval()
+    
+    main(model,'decrease')
+
+'''if __name__ == '__main__':
     model_path = Path('ckpts/0416222403/47_model.pt')
     time = model_path.as_posix().split('/')[-2]
     #model_path = Path('ckpts/0326180211_model.pt')
@@ -363,27 +519,27 @@ if __name__ == '__main__':
                           head=4,
                           length=2,
                           num_guidance_info=1).to('cuda')
-    '''model = MultiConditionAttentionModel(init_g=100.0,
+    model = MultiConditionAttentionModel(init_g=100.0,
                                          divide_out=0.2,
                                          num_layers=5,
                                          hidden_dim=768,
-                                         heads=8).to('cuda')'''
+                                         heads=8).to('cuda')
     
-    '''model = MultiConditionAttentionModel2(init_g=100.0,
+    model = MultiConditionAttentionModel2(init_g=100.0,
                                          divide_out=0.2,
                                          num_layers=5,
                                          hidden_dim=768,
-                                         heads=8).to('cuda')'''
+                                         heads=8).to('cuda')
                                          
-    '''model = MultiConditionAttentionBLIPModel(init_g=50.0,
+    model = MultiConditionAttentionBLIPModel(init_g=50.0,
                                              init_blip_g=50.0,
                                              divide_out=0.1,
                                              num_layers=5,
                                              hidden_dim=768,
-                                             heads=8).to('cuda')'''
+                                             heads=8).to('cuda')
     model.load_state_dict(torch.load(model_path))
     model.eval()
     
     main(model, time, 'decrease')
     #multi_condition_main(model, time,'constant')
-    #blip_main(model, time, 'decrease')
+    #blip_main(model, time, 'decrease')'''
