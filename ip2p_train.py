@@ -3,8 +3,8 @@ import os
 import wandb
 import torch
 import numpy as np
-from data.Dataset import DomainChangeZeroShotDataset
-from util.loss import ZeroShotLoss
+from data.Dataset import DomainChangeIP2PDataset
+from util.loss import IP2PLoss
 from util.utils import *
 from models.model import *
 import yaml
@@ -13,7 +13,7 @@ from pytorch_lightning import seed_everything
 from torch.utils.data import DataLoader
 from pathlib import Path
 import torchvision.transforms as T
-from eval import zero_shot_eval
+from eval import ip2p_eval
 from PIL import Image
 from random import randint
 
@@ -28,29 +28,24 @@ def train(config_path):
     device = config['device']
     
     struct_text = config['train_embedding_data'].split('/')[-1].split('_')[0]
-    clip_loss = "clip_ds" if loss_config['clip_ds_use'] else "clip"
     architecture = "Attention" if config['Attention'] else "FFNN"
     timestamp = get_timestamp()
     
-    name = f'''work-{timestamp}-Zero Shot
+    name = f'''work-{timestamp}-InstructPix2Pix
                Model : {architecture},
                num layer : {model_config['num_layers']}, 
                in size : {model_config['hidden_dim']},
-               heads : {model_config['heads']},
-               pnp : {loss_config['pnp_injection_rate']},
+               image guidance : {loss_config['image_guidance']},
                lambda_text : {loss_config['lambda_text']}, 
                lambda_structure : {loss_config['lambda_structure']},
                lambda_mean : {loss_config['lambda_mean']},
                lambda_negative : {loss_config['lambda_negative']},
-               dino thres : {loss_config['dino_threshold']}, 
-               t_loss : {clip_loss}, 
                init : {model_config['init_g']}, 
                div : {model_config['divide_out']}, 
                lr : {lr}, 
                s_text {struct_text}, 
                negative_clip {loss_config['negative_clip_use']}, 
                guidance_schedule {loss_config['gradient']},
-               image size {loss_config['image_size']},
                data len {config['data_length']}'''
                ############ WANDB INIT #############
     print("--------------- Wandb SETTING ---------------")
@@ -66,19 +61,17 @@ def train(config_path):
     
     seed_everything(config['seed'])
      
-    criterion = ZeroShotLoss(device=device,
+    criterion = IP2PLoss(device=device,
                      **loss_config).to(device)
     
-    train_dataset = DomainChangeZeroShotDataset(data_directory=config['train_data_root'],
-                                             latents_path=config['train_latent_data'],
-                                             embedding_path=config['train_embedding_data'],
-                                             data_length=config['data_length'])
+    train_dataset = DomainChangeIP2PDataset(data_directory=config['train_data_root'],
+                                            embedding_path=config['train_embedding_data'],
+                                            data_length=config['data_length'])
     train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
     train_prompts = train_dataset.text_embeddings
-    eval_dataset = DomainChangeZeroShotDataset(data_directory=config['eval_data_root'],
-                                             latents_path=config['eval_latent_data'],
-                                             embedding_path=config['eval_embedding_data'],
-                                             data_length=100)
+    eval_dataset = DomainChangeIP2PDataset(data_directory=config['eval_data_root'],
+                                           embedding_path=config['eval_embedding_data'],
+                                           data_length=100)
     eval_dataloader = DataLoader(eval_dataset, batch_size=10)
     eval_prompts = eval_dataset.text_embeddings
     
@@ -98,7 +91,7 @@ def train(config_path):
     
     save_root = Path(f'Train_images_results/{timestamp}')
     save_root.mkdir(exist_ok=True, parents=True)
-
+    
 
     for epoch in range(50):
         print(f"work-{timestamp}, epoch : {epoch}")
@@ -113,7 +106,6 @@ def train(config_path):
                  real_image_tensor,
                  image_embedding,
                  condition_mean,
-                 latents,
                  sd_text_embedding,
                  to_clip_embedding)= inputs
                 
@@ -129,7 +121,6 @@ def train(config_path):
                 real_image_tensor=real_image_tensor.to(device)
                 image_embedding=image_embedding.to(device)
                 condition_mean = condition_mean.to(device)
-                latents = latents.to(device)
                 sd_text_embedding = sd_text_embedding.to(device)
                 to_clip_embedding = to_clip_embedding.to(device)
                 
@@ -146,7 +137,6 @@ def train(config_path):
                 
                 loss, _g, _ccs, _dcs = criterion(real_image_tensor=real_image_tensor,
                                                  condition_mean=condition_mean,
-                                                 image_latents=latents,
                                                  sd_prompt_embedding=sd_text_embedding,
                                                  to_clip_embedding=to_clip_embedding,
                                                  g_init=pred_ginit)
@@ -196,7 +186,7 @@ def train(config_path):
         
         optimizer_scheduler.step()
 
-        valid_epoch_loss = zero_shot_eval(model= model,
+        valid_epoch_loss = ip2p_eval(model= model,
                                           criterion=criterion,
                                           eval_dataloader=eval_dataloader,
                                           eval_prompts=eval_prompts,
@@ -219,11 +209,6 @@ def train(config_path):
                 
 
 if __name__ == '__main__':
-    #train('configs/zero_shot_config.yaml')
-    train('configs/male_config.yaml')
-    #train('configs/horse2zebra_config.yaml')
-    #train('configs/zebra2horse_config.yaml')
-    #train('configs/summer_winter_config.yaml')
-    #train('configs/day_night_config.yaml')
-            
+    train('configs/ip2p_config.yaml')
+
             

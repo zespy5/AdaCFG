@@ -53,7 +53,7 @@ def image_clip_embeds(image):
     image_features = clip_model.get_image_features(clip_inputs["pixel_values"].to('cuda'))
         
     return image_features
-'''@torch.no_grad()
+@torch.no_grad()
 def main(model, grad, model_number=0):   
     condict = {'clear day':'a photo of a street on a clear day',
                   'cloudy day':'a photo of a street on a cloudy day',
@@ -64,7 +64,7 @@ def main(model, grad, model_number=0):
                   'sunset':'a photo of a street at sunset'}
     conditions = get_json('configs/conditions.json')
     
-    save_root = Path('check_valid/ours17-2')
+    save_root = Path('check_valid/sine')
     save_root.mkdir(exist_ok=True)
 
     save_valid = save_root/f'candidates'
@@ -128,7 +128,7 @@ def main(model, grad, model_number=0):
                 p_clip = Clip(gen_images[i], condict[k])
                 n_clip = Clip(gen_images[i], negative_prompt)
                 dino = Dino(image, gen_images[i])
-                loss = (1-p_clip) + n_clip + (1-dino)*0.15
+                loss = (1-p_clip) + n_clip + (1-dino)*0.1
                 g = guidance_values.item(i)
                 save_gen_img = save_category/f'prompt-{prompts[i]}.png'
                 gen_images[i].save(save_gen_img)
@@ -148,9 +148,9 @@ def main(model, grad, model_number=0):
             
         df = pd.DataFrame.from_dict(metric_dict, orient='index')
         df.index.name = 'file_name'
-        df.to_csv(save_valid/f'metrics.csv')'''
+        df.to_csv(save_valid/f'metrics.csv')
         
-@torch.no_grad()
+'''@torch.no_grad()
 def main(model, grad, model_number=0):   
     condict = {'white_hair': "A photo of a man with white hair",
                'red_hair': "A photo of a man with red dyed hair",
@@ -245,7 +245,7 @@ def main(model, grad, model_number=0):
         df = pd.DataFrame.from_dict(metric_dict, orient='index')
         df.index.name = 'file_name'
         df.to_csv(save_valid/f'metrics.csv')
-
+'''
 
 '''@torch.no_grad()
 def main(model, model_number,grad):
@@ -492,7 +492,7 @@ def blip_main(model, model_number, grad):
             gen_images[i].save(save_gen_img)  
 
 if __name__ == '__main__':
-    model_path = Path('ckpts/best_ckpts/40_man.pt')
+    model_path = Path('ckpts/best_ckpts/sine_weather.pt')
     time = model_path.as_posix().split('/')[-2]
 
     model = GuidanceModel(init_g=50.0,
@@ -505,7 +505,7 @@ if __name__ == '__main__':
     model.load_state_dict(torch.load(model_path))
     model.eval()
     
-    main(model,'decrease')
+    main(model,'sine')
 
 '''if __name__ == '__main__':
     model_path = Path('ckpts/0416222403/47_model.pt')

@@ -32,7 +32,7 @@ loss:
     lambda_negative : 1.0
     dino_threshold : 0.0
     num_condition : 1
-    pnp_injection_rate : 0.8
+    pnp_injection_rate : 0.7
     clip_ds_use : False
     negative_clip_use : True
     image_size : 512

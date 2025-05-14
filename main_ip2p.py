@@ -4,7 +4,7 @@ from models.model import *
 from transformers import CLIPModel, CLIPProcessor,  BlipProcessor, BlipForConditionalGeneration
 from pathlib import Path
 import torch
-import re
+from torchvision.transforms import ToTensor
 from tqdm import tqdm
 from PIL import Image
 import numpy
@@ -37,7 +37,7 @@ def image_clip_embeds(image):
         
     return image_features
 
-@torch.no_grad()
+#@torch.no_grad()
 def main(model, grad):   
     condict = {'clear day': 'a photo of a street on a clear day',
                   'cloudy day' : 'a photo of a street on a cloudy day' ,
@@ -48,7 +48,7 @@ def main(model, grad):
                   'sunset':'a photo of a street at sunset'}
     conditions = get_json('configs/ip2p_conditions.json')
     
-    save_root = Path('check_valid/ip2p15-2')
+    save_root = Path('check_valid/ip2p15-3')
     save_root.mkdir(exist_ok=True)
 
     save_valid = save_root/f'candidates'
@@ -63,7 +63,7 @@ def main(model, grad):
     pipe.to("cuda")
     pipe.scheduler = EulerAncestralDiscreteScheduler.from_config(pipe.scheduler.config)
     guidance_scheduler = GuidanceScheduler(gradient=grad)
-    
+    sd_clip_embedding = pipe._encode_prompt
     data_root = Path('image_data/eval')
     image_dirs = sorted([*data_root.glob('*')])
     
@@ -83,12 +83,15 @@ def main(model, grad):
         image = Image.open(img_dir)
         image.save(save_origin_image)
         image_embedding = image_clip_embeds(image)
+        image_tensor = ToTensor()(image)
         
         for k,v in conditions.items():
+            v=v[:4]
             save_category = save_images/k
             save_category.mkdir(exist_ok=True)
             batch_size = len(v)
-            
+            #ip2p_prompt_embedding = sd_clip_embedding(v, 'cuda', 1, True).chunk(3)[0]
+            #breakpoint()
             to_clip_embedding = prompt_embeds(v)
             img_embs = image_embedding.repeat(batch_size,1)
             mean_embedding = to_clip_embedding.mean(dim=0)
@@ -97,17 +100,18 @@ def main(model, grad):
             guidance_value = model(model_input)
             guidance = guidance_scheduler.get_guidance_scales(guidance_value)
 
-            images = [image]*batch_size
-            outputs = pipe(prompt = v,
+            images = [image_tensor]*batch_size
+            outputs = pipe(#prompt_embeds = ip2p_prompt_embedding,
+                           prompt=v,
                            image = images,
                            num_inference_steps=50,
                            guidance_scale=guidance,
-                           image_guidacne_scale=2,
-                           negative_prompt=['ugly, blurry, low resolution, unrealistic, paint, distortion']*batch_size)
-            
+                           image_guidance_scale=2,
+                           output_type='pt')
+                           #negative_prompt=['ugly, blurry, low resolution, unrealistic, paint, distortion']*batch_size)
             guidance_values = guidance_value.squeeze().cpu().numpy()
             gen_images = outputs.images
-            
+
             losses = []
             for i in range(batch_size):
                 m_clip = Clip_txt_mean_sim(mean_embedding, gen_images[i])

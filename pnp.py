@@ -144,7 +144,6 @@ class PnPPipeline(nn.Module):
         with torch.no_grad():
             noise_pred = self.unet(latent_model_input, t, encoder_hidden_states=text_embed_input)['sample']
         
-
         # perform guidance
         _num_condition = self.num_condition+2
         noise_pred = noise_pred.chunk(_num_condition)

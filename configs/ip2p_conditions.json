@@ -1,59 +1,86 @@
 {
-    "clear day": [
-      "make it a clear day",
-      "Show a street on a clear day.",
-      "Display a road under a bright sky.",
-      "Render a sunny street scene.",
-      "Depict a calm road in clear daylight.",
-      "Generate a bright, cloudless day on a street."
-    ],
-    "night": [
-      "make it night",
-      "Show a street at night.",
-      "Display a dark road with faint lights.",
-      "Render a quiet street under the night sky.",
-      "Depict a night scene with minimal lighting.",
-      "Generate a nighttime street view."
-    ],
-    "sunset": [
-      "make it sunset",
-      "Show a street at sunset.",
-      "Display warm evening light on a road.",
-      "Render a street glowing with sunset colors.",
-      "Depict a road under an orange sky.",
-      "Generate a quiet sunset street scene."
-    ],
-    "rainy day": [
-      "make it a rainy day",
-      "Show a street on a rainy day.",
-      "Display a wet road under heavy rain.",
-      "Render a scene with steady rainfall.",
-      "Depict raindrops hitting a quiet street.",
-      "Generate a rain-soaked street view."
-    ],
-    "foggy day": [
-      "make it a foggy day",
-      "Show a street on a foggy day.",
-      "Display a road fading into thick fog.",
-      "Render a street with low visibility.",
-      "Depict heavy mist covering the scene.",
-      "Generate a fog-covered street."
-    ],
-    "snowy day": [
-      "make it a snowy day",
-      "Show a street on a snowy day.",
-      "Display a road covered in fresh snow.",
-      "Render falling snow on a quiet street.",
-      "Depict a winter scene with soft snow.",
-      "Generate a snow-blanketed road."
-    ],
-    "cloudy day": [
-      "make it a cloudy day",
-      "Show a street on a cloudy day.",
-      "Display gray clouds above a road.",
-      "Render an overcast sky over the street.",
-      "Depict a dull, cloud-covered street.",
-      "Generate a calm scene with cloudy weather."
-    ]
-  }
-  
+  "clear": [
+    "Show a street on a clear day.",
+    "Display a road under a bright sky.",
+    "Render a sunny street scene.",
+    "Depict a calm road in clear daylight.",
+    "Generate a bright, cloudless day on a street.",
+    "Create a vivid daytime street image.",
+    "Visualize a road with a clear blue sky.",
+    "Draw a street bathed in sunlight.",
+    "Produce a clean and bright street scene.",
+    "Illustrate a peaceful road under clear skies."
+  ],
+  "night": [
+    "Show a street at night.",
+    "Display a dark road with faint lights.",
+    "Render a quiet street under the night sky.",
+    "Depict a night scene with minimal lighting.",
+    "Generate a nighttime street view.",
+    "Create a road scene with only streetlights.",
+    "Visualize a dimly lit street at night.",
+    "Draw a silent road in deep darkness.",
+    "Produce a city street in nighttime.",
+    "Illustrate a dark street with glowing lights."
+  ],
+  "sunset": [
+    "Show a street at sunset.",
+    "Display warm evening light on a road.",
+    "Render a street glowing with sunset colors.",
+    "Depict a road under an orange sky.",
+    "Generate a quiet sunset street scene.",
+    "Create a view of a road during dusk.",
+    "Visualize golden light falling on the street.",
+    "Draw a sunset sky above a calm street.",
+    "Produce a scene with fading sunlight.",
+    "Illustrate a street bathed in sunset hues."
+  ],
+  "rain": [
+    "Show a street on a rainy day.",
+    "Display a wet road under heavy rain.",
+    "Render a scene with steady rainfall.",
+    "Depict raindrops hitting a quiet street.",
+    "Generate a rain-soaked street view.",
+    "Create a gloomy street with puddles.",
+    "Visualize falling rain on the road.",
+    "Draw a wet and reflective street scene.",
+    "Produce a misty road under rainfall.",
+    "Illustrate a rainy day in an urban street."
+  ],
+  "fog": [
+    "Show a street on a foggy day.",
+    "Display a road fading into thick fog.",
+    "Render a street with low visibility.",
+    "Depict heavy mist covering the scene.",
+    "Generate a fog-covered street.",
+    "Create a hazy road with soft edges.",
+    "Visualize a street hidden in white fog.",
+    "Draw a quiet road lost in mist.",
+    "Produce a scene with dense fog and no horizon.",
+    "Illustrate a misty road with faded background."
+  ],
+  "snow": [
+    "Show a street on a snowy day.",
+    "Display a road covered in fresh snow.",
+    "Render falling snow on a quiet street.",
+    "Depict a winter scene with soft snow.",
+    "Generate a snow-blanketed road.",
+    "Create a street with snow piling on the sides.",
+    "Visualize a cold road with light snowfall.",
+    "Draw snowflakes drifting onto a street.",
+    "Produce a white, wintry street view.",
+    "Illustrate a peaceful snow-covered street."
+  ],
+  "cloudy": [
+    "Show a street on a cloudy day.",
+    "Display gray clouds above a road.",
+    "Render an overcast sky over the street.",
+    "Depict a dull, cloud-covered street.",
+    "Generate a calm scene with cloudy weather.",
+    "Create a soft light scene under cloud cover.",
+    "Visualize a street under thick clouds.",
+    "Draw a street with a pale gray sky.",
+    "Produce a muted, colorless street view.",
+    "Illustrate a road beneath an overcast sky."
+  ]
+}
