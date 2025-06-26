@@ -10,6 +10,7 @@ import torch.nn.functional as F
 from transformers import CLIPModel, CLIPProcessor
 from models.model import *
 from util.guidance_scheduler import GuidanceScheduler
+from util.utils import get_json
 clip_model = CLIPModel.from_pretrained("openai/clip-vit-large-patch14").to('cuda')
 clip_processor = CLIPProcessor.from_pretrained("openai/clip-vit-large-patch14")
 
@@ -39,27 +40,28 @@ scheduler = DDIMScheduler.from_pretrained(model_id_or_path, subfolder="scheduler
 pipe = CycleDiffusionPipelineGuidance.from_pretrained(model_id_or_path, scheduler=scheduler).to("cuda")
 
 
-categorys = ['a photo of a street on a clear day',
-             'a photo of a street on a cloudy day',
-             'a photo of a street on a foggy day',
-             'a photo of a street on a rainy day',
-             'a photo of a street on a snowy day',
-             'a photo of a street at night',
-             'a photo of a street at sunset']
+categorys = {'clear day':'a photo of a street on a clear day',
+             'cloudy day':'a photo of a street on a cloudy day',
+             'foggy day':'a photo of a street on a foggy day',
+             'rainy day':'a photo of a street on a rainy day',
+             'snowy day':'a photo of a street on a snowy day',
+             'night':'a photo of a street at night',
+             'sunset':'a photo of a street at sunset'}
+conditions = get_json('configs/conditions.json')
 
 data_root = Path('image_data/eval')
 origin_images = sorted([*data_root.glob('*.jpg')])
 save_root = Path('check_valid/cycle-diffusion')
 save_root.mkdir(exist_ok=True)
 
-strength = 0.4
+strength = 0.5
 num_inference_steps = 100
 guidance_inference_step = strength*num_inference_steps
 
 guidance_scheduler = GuidanceScheduler(gradient='decrease', device='cuda', 
                                        n_timestep=guidance_inference_step)
 
-model_path = Path('ckpts/best_ckpts/15_linear_weather.pt')
+model_path = Path('ckpts/best_ckpts/decrease_weather.pt')
 
 model = GuidanceModel(init_g=50.0,
                         divide_out=0.1,
@@ -69,10 +71,6 @@ model = GuidanceModel(init_g=50.0,
 
 model.load_state_dict(torch.load(model_path))
 model.eval()
-
-for c in categorys:
-    category_root = save_root/c
-    category_root.mkdir(exist_ok=True)
 
 for o_img in tqdm(origin_images):
     init_image = Image.open(o_img).convert("RGB")
@@ -93,7 +91,7 @@ for o_img in tqdm(origin_images):
             source_prompt=source_prompt,
             image=init_image,
             num_inference_steps=num_inference_steps,
-            eta=0.01,
+            eta=0.005,
             strength=strength,
             guidance_scale=guidance,
             source_guidance_scale=1

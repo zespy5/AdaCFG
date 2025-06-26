@@ -8,7 +8,7 @@ from util.loss import Loss
 from tqdm import tqdm
 from torch.nn.functional import cosine_similarity
 from util.utils import get_json
-from transformers import BlipProcessor, BlipForConditionalGeneration
+'''from transformers import BlipProcessor, BlipForConditionalGeneration
 image_processor = BlipProcessor.from_pretrained("Salesforce/blip-image-captioning-large") 
 i2t_model = BlipForConditionalGeneration.from_pretrained("Salesforce/blip-image-captioning-large").to('cuda')
             
@@ -27,7 +27,7 @@ def generate_prompt(image_dirs):
 
     captions = [image_processor.decode(out, skip_special_tokens=True) for out in outputs]
 
-    return captions
+    return captions'''
 
 
 
@@ -38,13 +38,13 @@ def main(cat):
                    blip_use=True)
     pipe = loss.pipeline
     
-    blip_generate_prompt = generate_prompt
+    #blip_generate_prompt = generate_prompt
     sd_clip_embedding = pipe.get_text_embeds
     large_clip_image_embedding = loss.image_clip_embeds
     large_clip_text_embedding = loss.prompt_embeds
     
     
-    large_conditions = get_json(f'configs/male_prompts.json')
+    large_conditions = get_json(f'configs/large_conditions2.json')
 
     for key in large_conditions.values():
         v = set(key)
@@ -52,9 +52,9 @@ def main(cat):
         
     conditions = list(large_conditions.keys())
 
-    image_dir = Path(f'unpaired_image_data/{cat}')
+    image_dir = Path(f'image_data')
     train_dir = image_dir/f'train'
-    eval_dir = image_dir/f'valid'
+    eval_dir = image_dir/f'eval'
 
     train_images = sorted([*train_dir.glob('*')])
     eval_images  = sorted([*eval_dir.glob('*')])
@@ -91,12 +91,12 @@ def main(cat):
             image_project_embedding = large_clip_image_embedding(image)
             each_emb['image_project_embedding'] = image_project_embedding
 
-            from_prompt = blip_generate_prompt([img])[0]
-            each_emb['blip_prompt'] = from_prompt
-            origin_text_project_embedding = large_clip_text_embedding(from_prompt)
-            origin_sd_text_embedding = sd_clip_embedding(from_prompt)
-            each_emb['clip'] = origin_text_project_embedding
-            each_emb['sd_clip'] = origin_sd_text_embedding
+            #from_prompt = blip_generate_prompt([img])[0]
+            #each_emb['blip_prompt'] = from_prompt
+            #origin_text_project_embedding = large_clip_text_embedding(from_prompt)
+            #origin_sd_text_embedding = sd_clip_embedding(from_prompt)
+            #each_emb['clip'] = origin_text_project_embedding
+            #each_emb['sd_clip'] = origin_sd_text_embedding
             
             image_embedds[file_name] = each_emb
             
@@ -107,7 +107,7 @@ def main(cat):
     cat_name = cat.replace('_','-')
     save_root = Path('merged_latents_forwards')
     train_save = save_root/f'{cat_name}_train_embeddings.pt'
-    eval_save = save_root/f'{cat_name}_valid_embeddings.pt'
+    eval_save = save_root/f'{cat_name}_eval_embeddings.pt'
     
     train_data = make_config(train_images)
     eval_data = make_config(eval_images)
@@ -120,7 +120,7 @@ def main(cat):
 if __name__ == "__main__": 
     #category = ['summer_winter','day_night','cat_dog', 'horse_zebra']
     #category = ['day_night']
-    category = ['male']
+    category = ['fine_zero-shot-50']
     for cat in category:
         main(cat)
                 

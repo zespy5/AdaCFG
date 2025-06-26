@@ -37,7 +37,7 @@ def image_clip_embeds(image):
         
     return image_features
 
-#@torch.no_grad()
+@torch.no_grad()
 def main(model, grad):   
     condict = {'clear day': 'a photo of a street on a clear day',
                   'cloudy day' : 'a photo of a street on a cloudy day' ,
@@ -48,7 +48,7 @@ def main(model, grad):
                   'sunset':'a photo of a street at sunset'}
     conditions = get_json('configs/ip2p_conditions.json')
     
-    save_root = Path('check_valid/ip2p15-3')
+    save_root = Path('check_valid/ip2p_increase')
     save_root.mkdir(exist_ok=True)
 
     save_valid = save_root/f'candidates'
@@ -86,7 +86,7 @@ def main(model, grad):
         image_tensor = ToTensor()(image)
         
         for k,v in conditions.items():
-            v=v[:4]
+            #v=v[:6]
             save_category = save_images/k
             save_category.mkdir(exist_ok=True)
             batch_size = len(v)
@@ -106,8 +106,8 @@ def main(model, grad):
                            image = images,
                            num_inference_steps=50,
                            guidance_scale=guidance,
-                           image_guidance_scale=2,
-                           output_type='pt')
+                           image_guidance_scale=1.6,)
+                           #output_type='pt')
                            #negative_prompt=['ugly, blurry, low resolution, unrealistic, paint, distortion']*batch_size)
             guidance_values = guidance_value.squeeze().cpu().numpy()
             gen_images = outputs.images
@@ -118,7 +118,7 @@ def main(model, grad):
                 p_clip = Clip(gen_images[i], condict[k])
                 n_clip = Clip(gen_images[i], negative_prompt)
                 dino = Dino(image, gen_images[i])
-                loss = (1-p_clip) + n_clip + (1-dino)*0.1
+                loss = (1-p_clip) + n_clip + (1-dino)*0.15
                 g = guidance_values.item(i)
                 save_gen_img = save_category/f'prompt-{v[i]}.png'
                 gen_images[i].save(save_gen_img)
@@ -142,16 +142,16 @@ def main(model, grad):
 
     
 if __name__ == '__main__':
-    model_path = Path('ckpts/best_ckpts/15_linear_weather.pt')
+    model_path = Path('ckpts/best_ckpts/ip2p_increase_weather.pt')
     time = model_path.as_posix().split('/')[-2]
 
-    model = GuidanceModel(init_g=25.0,
+    model = GuidanceModel(init_g=50.0,
                           divide_out=0.1,
                           hidden_dim=768*2,
-                          num_layers=5,
+                          num_layers=8,
                           num_guidance_info=1).to('cuda')
 
     model.load_state_dict(torch.load(model_path))
     model.eval()
     
-    main(model,'decrease')
+    main(model,'increase')

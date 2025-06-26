@@ -1,4 +1,4 @@
-seed : 1
+seed : 42
 device : "cuda"
 
 #dataset
@@ -10,33 +10,33 @@ eval_latent_data : 'merged_latents_forwards/eval_latents.pt'
 eval_embedding_data : 'merged_latents_forwards/zero-shot-50_eval_embeddings.pt'
 data_length : 2000
 batch_size : 5
-learning_rate : 5.0e-7
+learning_rate : 1.0e-6
 lr_lambda : 0.8
-origin_alpha : 0 
+epoch : 20
 Attention : False
 
 model:
-    init_g : 70.0
-    divide_out : 0.1
-    num_guidance_info : 1
+    init_g : 100.0
+    divide_out : 0.05
+    num_guidance_info : 2
     hidden_dim : 768
-    num_layers : 8
+    num_layers : 4
     heads : 4
     length : 2
 
 loss:
-    negative_prompt: 'ugly, blurry, low resolution, unrealistic, paint, distortion'
-    lambda_text : 0.5
-    lambda_structure : 0.05
-    lambda_mean : 0.5
-    lambda_negative : 1.0
+    negative_prompt: 'ugly, low resolution, unrealistic, distortion'
+    lambda_text : 0.3
+    lambda_structure : 0.1
+    lambda_mean : 0.7
+    lambda_negative : 0.8
     dino_threshold : 0.0
     num_condition : 1
     pnp_injection_rate : 0.9
     clip_ds_use : False
     negative_clip_use : True
     image_size : 512
-    gradient : 'decrease'
+    gradient : 'sine'
     schedule_method : 'cosine'
 
 

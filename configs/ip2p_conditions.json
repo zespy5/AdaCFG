@@ -1,5 +1,5 @@
 {
-  "clear": [
+  "clear day": [
     "Show a street on a clear day.",
     "Display a road under a bright sky.",
     "Render a sunny street scene.",
@@ -35,7 +35,7 @@
     "Produce a scene with fading sunlight.",
     "Illustrate a street bathed in sunset hues."
   ],
-  "rain": [
+  "rainy day": [
     "Show a street on a rainy day.",
     "Display a wet road under heavy rain.",
     "Render a scene with steady rainfall.",
@@ -47,7 +47,7 @@
     "Produce a misty road under rainfall.",
     "Illustrate a rainy day in an urban street."
   ],
-  "fog": [
+  "foggy day": [
     "Show a street on a foggy day.",
     "Display a road fading into thick fog.",
     "Render a street with low visibility.",
@@ -59,7 +59,7 @@
     "Produce a scene with dense fog and no horizon.",
     "Illustrate a misty road with faded background."
   ],
-  "snow": [
+  "snowy day": [
     "Show a street on a snowy day.",
     "Display a road covered in fresh snow.",
     "Render falling snow on a quiet street.",
@@ -71,7 +71,7 @@
     "Produce a white, wintry street view.",
     "Illustrate a peaceful snow-covered street."
   ],
-  "cloudy": [
+  "cloudy day": [
     "Show a street on a cloudy day.",
     "Display gray clouds above a road.",
     "Render an overcast sky over the street.",

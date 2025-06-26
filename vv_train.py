@@ -4,7 +4,7 @@ import wandb
 import torch
 import numpy as np
 from data.Dataset import DomainChangeZeroShotDataset
-from util.loss import ZeroShotLoss
+from util.loss import VVLoss
 from util.utils import *
 from models.model import *
 import yaml
@@ -13,7 +13,7 @@ from pytorch_lightning import seed_everything
 from torch.utils.data import DataLoader
 from pathlib import Path
 import torchvision.transforms as T
-from eval import zero_shot_eval
+from eval import vv_eval
 from PIL import Image
 from random import randint
 
@@ -26,27 +26,28 @@ def train(config_path):
     lr = config['learning_rate']
     batch_size = config['batch_size']
     device = config['device']
+    epochs = config['epoch']
     
     struct_text = config['train_embedding_data'].split('/')[-1].split('_')[0]
-    clip_loss = "clip_ds" if loss_config['clip_ds_use'] else "clip"
     architecture = "Attention" if config['Attention'] else "FFNN"
     timestamp = get_timestamp()
     
     name = f'''work-{timestamp}-Zero Shot
-               Model : {architecture},
+               Model : {architecture},minus model,
                num layer : {model_config['num_layers']}, 
+               num_guidacne_info : {model_config['num_guidance_info']},
                in size : {model_config['hidden_dim']},
                heads : {model_config['heads']},
                pnp : {loss_config['pnp_injection_rate']},
                lambda_text : {loss_config['lambda_text']}, 
                lambda_structure : {loss_config['lambda_structure']},
                lambda_mean : {loss_config['lambda_mean']},
-               lambda_negative : {loss_config['lambda_negative']},
-               dino thres : {loss_config['dino_threshold']}, 
-               t_loss : {clip_loss}, 
+               lambda_negative : {loss_config['lambda_negative']}, 
                init : {model_config['init_g']}, 
                div : {model_config['divide_out']}, 
                lr : {lr}, 
+               lr_lambda : {config['lr_lambda']},
+               batch_size {batch_size},
                s_text {struct_text}, 
                negative_clip {loss_config['negative_clip_use']}, 
                guidance_schedule {loss_config['gradient']},
@@ -66,7 +67,7 @@ def train(config_path):
     
     seed_everything(config['seed'])
      
-    criterion = ZeroShotLoss(device=device,
+    criterion = VVLoss(device=device,
                      **loss_config).to(device)
     
     train_dataset = DomainChangeZeroShotDataset(data_directory=config['train_data_root'],
@@ -100,7 +101,7 @@ def train(config_path):
     save_root.mkdir(exist_ok=True, parents=True)
 
 
-    for epoch in range(50):
+    for epoch in range(epochs):
         print(f"work-{timestamp}, epoch : {epoch}")
         total_loss = 0
         save_dir = save_root/f'epoch-{epoch}'
@@ -141,15 +142,16 @@ def train(config_path):
                     model_input = torch.cat([image_embedding,
                                              to_clip_embedding], dim=1)
 
-                pred_ginit = model(model_input)
-                
+                pred_ginit, pred_velocity = model(model_input)
+
                 
                 loss, _g, _ccs, _dcs = criterion(real_image_tensor=real_image_tensor,
                                                  condition_mean=condition_mean,
                                                  image_latents=latents,
                                                  sd_prompt_embedding=sd_text_embedding,
                                                  to_clip_embedding=to_clip_embedding,
-                                                 g_init=pred_ginit)
+                                                 g_init=pred_ginit,
+                                                 velocity=pred_velocity)
                 
                 t.set_postfix(loss=loss.item())
 
@@ -162,6 +164,7 @@ def train(config_path):
                 
                 mean_ccs, condition_ccs = _ccs.chunk(2)
                 preds = pred_ginit.squeeze().detach().cpu().numpy()
+                preds_v = pred_velocity.squeeze().detach().cpu().numpy()
                 condition_ccs = condition_ccs.detach().cpu().numpy()
                 mean_ccs = mean_ccs.detach().cpu().numpy()
                 struc_dcs = _dcs.detach().cpu().numpy()
@@ -169,6 +172,7 @@ def train(config_path):
                 for ps in range(len(preds)):
                     log_conditions_values ={}
                     log_conditions_values['g_init '+ selected_conditions[ps]] = preds.item(ps)
+                    log_conditions_values['velocity '+ selected_conditions[ps]] = preds_v.item(ps)
                     log_conditions_values['clip cosin similarity '+ selected_conditions[ps]] = condition_ccs.item(ps)
                     log_conditions_values['dino cosin similarity'] = struc_dcs.item(ps)
                     wandb.log(log_conditions_values)
@@ -196,7 +200,7 @@ def train(config_path):
         
         optimizer_scheduler.step()
 
-        valid_epoch_loss = zero_shot_eval(model= model,
+        valid_epoch_loss = vv_eval(model= model,
                                           criterion=criterion,
                                           eval_dataloader=eval_dataloader,
                                           eval_prompts=eval_prompts,
@@ -219,9 +223,9 @@ def train(config_path):
                 
 
 if __name__ == '__main__':
-    train('configs/zero_shot_config.yaml')
-    #train('configs/male_config.yaml')
-    #train('configs/dog_config.yaml')
+    train('configs/vv_config.yaml')
+    #train('configs/vv_dog_config.yaml')
+    #train('configs/vv_male_config.yaml')
 
             
             

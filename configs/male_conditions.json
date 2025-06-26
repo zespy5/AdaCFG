@@ -27,12 +27,12 @@
         "A clean-shaven man with no visible facial hair.",
         "He has a sharply trimmed dark brown beard."
     ],
-    "dark_skin": [
-        "A man with deep, dark brown skin.",
-        "His black skin glows under natural light.",
-        "A man with smooth, charcoal-toned skin.",
-        "His skin is rich and dark with cool undertones.",
-        "A man with ebony skin and even texture."
+    "tanned_skin": [
+      "The man has a deep, golden tan.",
+      "His tanned skin glows in the sun.",
+      "A man with bronzed skin and even tone.",
+      "The man has warm, sun-kissed skin.",
+      "His tan complexion shows natural radiance."
     ],
     "sad_expression": [
         "The man looks down with a sad expression.",

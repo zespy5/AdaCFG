@@ -1,7 +1,8 @@
 import torch
 from diffusers import DDIMScheduler
 import math
-from typing import Literal
+from typing import Literal, Optional
+
 def betas_for_alpha_bar(
     num_diffusion_timesteps,
     max_beta=0.999,
@@ -86,21 +87,27 @@ class GuidanceScheduler(DDIMScheduler):
         
         
         
-    def get_guidance_scales(self, schedule_info : torch.Tensor)->torch.Tensor:
+    def get_guidance_scales(self, 
+                            schedule_info : torch.Tensor, 
+                            schedule_velocity : Optional[torch.Tensor]=None)->torch.Tensor:
         
         if self.gradient=='constant':
             return schedule_info.repeat(1,self.num_inference_steps)
         
         batch_size, _ = schedule_info.shape
 
-        timesteps = self.timesteps.repeat(batch_size,1)
+        timesteps = self.timesteps.repeat(batch_size,1).to(self.device)
         
         if self.gradient=='sine':
             scheduler = self.sine_schedule().unsqueeze(0).repeat(batch_size,1)
         else:
             scheduler = self.schedule().unsqueeze(0).repeat(batch_size,1)
 
-        selected_schedulers = torch.gather(scheduler,1, timesteps).to(self.device)
+        scheduler = scheduler.to(self.device)
+        if schedule_velocity is not None:
+            scheduler = torch.pow(scheduler, schedule_velocity)
+
+        selected_schedulers = torch.gather(scheduler,1, timesteps)
         selected_schedulers = selected_schedulers.flip(1) if self.gradient=='decrease' else selected_schedulers
 
         schedulers = schedule_info*selected_schedulers
