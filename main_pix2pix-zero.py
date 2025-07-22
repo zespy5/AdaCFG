@@ -108,13 +108,13 @@ pipeline.enable_model_cpu_offload()
 num_inference = 100
 guidance_scheduler = GuidanceScheduler(gradient='decrease', device='cuda', n_timestep=num_inference)
 
-model_path = Path('ckpts/best_ckpts/15_linear_weather.pt')
+model_path = Path('ckpts/0610121259/18_model.pt')
 
-model = GuidanceModel(init_g=50.0,
-                        divide_out=0.1,
+model = GuidanceModel(init_g=100.0,
+                        divide_out=0.05,
                         hidden_dim=768*2,
-                        num_layers=5,
-                        num_guidance_info=1).to('cuda')
+                        num_layers=8,
+                        num_guidance_info=2).to('cuda')
 
 model.load_state_dict(torch.load(model_path))
 model.eval()
@@ -151,9 +151,13 @@ with torch.no_grad():
             target_embeds = pipeline.get_embeds(target_prompts)
             
             model_input = torch.cat([image_embedding, to_clip_embedding], dim=1)
-            guidance_value = model(model_input)
-            guidance = guidance_scheduler.get_guidance_scales(guidance_value).to('cuda')
+            #guidance_value = model(model_input)
+            #guidance = guidance_scheduler.get_guidance_scales(guidance_value).to('cuda')
 
+            guidance_value, velocity = model(model_input)
+
+            guidance = guidance_scheduler.get_guidance_scales(guidance_value, velocity)
+            
             image = pipeline(
                 caption,
                 source_embeds=source_embeds,

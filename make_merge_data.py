@@ -44,7 +44,7 @@ def main(cat):
     large_clip_text_embedding = loss.prompt_embeds
     
     
-    large_conditions = get_json(f'configs/large_conditions2.json')
+    large_conditions = get_json(f'configs/male_prompts2.json')
 
     for key in large_conditions.values():
         v = set(key)
@@ -52,9 +52,9 @@ def main(cat):
         
     conditions = list(large_conditions.keys())
 
-    image_dir = Path(f'image_data')
+    image_dir = Path(f'unpaired_image_data/male')
     train_dir = image_dir/f'train'
-    eval_dir = image_dir/f'eval'
+    eval_dir = image_dir/f'valid'
 
     train_images = sorted([*train_dir.glob('*')])
     eval_images  = sorted([*eval_dir.glob('*')])
@@ -107,7 +107,7 @@ def main(cat):
     cat_name = cat.replace('_','-')
     save_root = Path('merged_latents_forwards')
     train_save = save_root/f'{cat_name}_train_embeddings.pt'
-    eval_save = save_root/f'{cat_name}_eval_embeddings.pt'
+    eval_save = save_root/f'{cat_name}_valid_embeddings.pt'
     
     train_data = make_config(train_images)
     eval_data = make_config(eval_images)
@@ -120,7 +120,7 @@ def main(cat):
 if __name__ == "__main__": 
     #category = ['summer_winter','day_night','cat_dog', 'horse_zebra']
     #category = ['day_night']
-    category = ['fine_zero-shot-50']
+    category = ['male']
     for cat in category:
         main(cat)
                 

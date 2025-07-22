@@ -567,6 +567,7 @@ class IP2PLoss(nn.Module):
                  lambda_negative : float = 1.0,
                  n_timestep : int = 50,
                  image_guidance : float = 2.0,
+                 devide_guide : float = 5.0,
                  negative_clip_use : bool = True,
                  gradient : Literal['increase', 'decrease', 'constant'] = 'increase',
                  schedule_method : Literal['cosine', 'linear'] = 'cosine',
@@ -584,7 +585,7 @@ class IP2PLoss(nn.Module):
         self.negative_clip_use = negative_clip_use
         self.n_timestep = n_timestep
         self.image_guidance = image_guidance
-        
+        self.devide_guide = devide_guide
         model_id = "timbrooks/instruct-pix2pix"
         self.pipeline = InstructPix2PixPipeline.from_pretrained(model_id, safety_checker=None).to(device)
         
@@ -682,16 +683,18 @@ class IP2PLoss(nn.Module):
                 condition_mean,
                 sd_prompt_embedding,
                 to_clip_embedding,
-                g_init:Optional[torch.Tensor]=None
+                g_init:Optional[torch.Tensor]=None,
+                velocity:Optional[torch.Tensor]= None,
                 ):
         
-        scheduled_guidance = self.guidance_scheduler.get_guidance_scales(g_init)
+        scheduled_guidance = self.guidance_scheduler.get_guidance_scales(g_init, velocity)
 
         outputs = self.pipeline(prompt_embeds=sd_prompt_embedding,
                                 image=real_image_tensor,
                                 num_inference_steps=self.n_timestep,
                                 guidance_scale=scheduled_guidance,
                                 image_guidance_scale=self.image_guidance,
+                                devide_guide = self.devide_guide,
                                 output_type='pt')
         
         gen_images = outputs.images
@@ -724,7 +727,6 @@ class VVLoss(nn.Module):
                  lambda_structure: float = 0.1,
                  lambda_mean : float = 0.1,
                  lambda_negative : float = 1.0,
-                 dino_threshold : float = 0.2,
                  num_condition : int = 3,
                  pnp_injection_rate : float = 0.9,
                  negative_clip_use : bool = True,
@@ -742,7 +744,6 @@ class VVLoss(nn.Module):
         self.lambda_mean = lambda_mean
         self.lambda_structure = lambda_structure
         self.lambda_negative = lambda_negative
-        self.dino_threshold = dino_threshold
         self.num_condition = num_condition
         self.pnp_injection_rate = pnp_injection_rate
         self.negative_clip_use = negative_clip_use

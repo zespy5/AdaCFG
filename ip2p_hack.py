@@ -23,6 +23,7 @@ class InstructPix2PixPipeline(StableDiffusionInstructPix2PixPipeline):
         num_inference_steps: int = 100,
         guidance_scale: Optional[torch.Tensor] = None,
         image_guidance_scale: float = 1.5,
+        devide_guide: float = 5.0,
         negative_prompt: Optional[Union[str, List[str]]] = None,
         num_images_per_prompt: Optional[int] = 1,
         eta: float = 0.0,
@@ -285,11 +286,17 @@ class InstructPix2PixPipeline(StableDiffusionInstructPix2PixPipeline):
             # perform guidance
             if self.do_classifier_free_guidance:
                 guide = self.guidance_scales[:,i].view(batch_size,1,1,1) if guidance_scale is not None else self.guidance_scale
+                if image_guidance_scale == 1.0:
+                    image_guide = guide/devide_guide
+                    image_guide = torch.where(image_guide < 1.0, 1.0, image_guide)
+                else:
+                    image_guide = self.image_guidance_scale
+                    
                 noise_pred_text, noise_pred_image, noise_pred_uncond = noise_pred.chunk(3)
                 noise_pred = (
                     noise_pred_uncond
                     + guide * (noise_pred_text - noise_pred_image)
-                    + self.image_guidance_scale * (noise_pred_image - noise_pred_uncond)
+                    + image_guide * (noise_pred_image - noise_pred_uncond)
                 )
 
             # compute the previous noisy sample x_t -> x_t-1

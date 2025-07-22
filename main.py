@@ -53,18 +53,18 @@ def image_clip_embeds(image):
     image_features = clip_model.get_image_features(clip_inputs["pixel_values"].to('cuda'))
         
     return image_features
-'''@torch.no_grad()
-def main(model, grad, model_number=0):   
+@torch.no_grad()
+def main(model, grad):   
     condict = {'clear day':'a photo of a street on a clear day',
-                  'cloudy day':'a photo of a street on an overcast day',
-                  'foggy day':'a photo of a street on a foggy day',
-                  'rainy day':'a photo of a street on a rainy day',
-                  'snowy day':'a photo of a street on a snowy day',
-                  'night':'a photo of a street at night',
-                  'sunset':'a photo of a street at sunset'}
-    conditions = get_json('configs/conditions.json')
+               'cloudy day':'a photo of a street on an overcast day',
+               'foggy day':'a photo of a street on a foggy day',
+               'rainy day':'a photo of a street on a rainy day',
+               'snowy day':'a photo of a street on a snowy day',
+               'night':'a photo of a street at night',
+               'sunset':'a photo of a street at sunset'}
+    conditions = get_json('configs/conditions2.json')
     
-    save_root = Path('check_valid/decrease_velocity_0619094527')
+    save_root = Path(f'check_valid/velocity_{grad}_test')
     save_root.mkdir(exist_ok=True)
 
     save_valid = save_root/f'candidates'
@@ -81,8 +81,8 @@ def main(model, grad, model_number=0):
                       pnp_f_t=0.8)
     guidance_scheduler = GuidanceScheduler(gradient=grad)
     
-    data_root = Path('image_data/eval')
-    #data_root = Path('unpaired_image_data/6view2/selected_samples')
+    #data_root = Path('image_data/eval')
+    data_root = Path('unpaired_image_data/weather')
     image_dirs = sorted([*data_root.glob('*')])
     
     
@@ -114,10 +114,11 @@ def main(model, grad, model_number=0):
             
             images = [img_dir]*batch_size
             outputs = pnp(image_dirs=images,
-                        negative_prompt='ugly, low resolution, unrealistic, distortion',
+                        negative_prompt='ugly, low resolution, unrealistic, distortion, blurry',
                         prompts=[v],
                         guidance_scales=guidance,
-                        latents_save_root='eval_latents_forward')
+                        #latents_save_root='eval_latents_forward')
+                        latents_save_root='unpaired_image_data/weather_latents')
             
             guidance_values = guidance_value.squeeze().cpu().numpy()
             velocity = velocity.squeeze().cpu().numpy()
@@ -138,10 +139,10 @@ def main(model, grad, model_number=0):
                 
                 _metrics = {'guidance': g,
                             'velocity': v,
-                        'mean clip': m_clip,
-                        'positive clip': p_clip,
-                        'negative clip': n_clip,
-                        'dino': dino}
+                            'mean clip': m_clip,
+                            'positive clip': p_clip,
+                            'negative clip': n_clip,
+                            'dino': dino}
                 losses.append(loss)
                 metric_dict[save_gen_img.as_posix()] = _metrics
             min_loss = min(losses)
@@ -152,7 +153,7 @@ def main(model, grad, model_number=0):
             
         df = pd.DataFrame.from_dict(metric_dict, orient='index')
         df.index.name = 'file_name'
-        df.to_csv(save_valid/f'metrics.csv')'''
+        df.to_csv(save_valid/f'metrics.csv')
 
 '''@torch.no_grad()
 def main(model, grad, model_number=0):   
@@ -255,7 +256,7 @@ def main(model, grad, model_number=0):
         df.index.name = 'file_name'
         df.to_csv(save_valid/f'metrics.csv')'''
 
-@torch.no_grad()
+'''@torch.no_grad()
 def main(model, grad, model_number=0):   
     condict = {'white_hair': "A photo of a man with white hair",
                'red_hair': "A photo of a man with red dyed hair",
@@ -266,7 +267,7 @@ def main(model, grad, model_number=0):
                'smiling_expression': "A photo of a smiling man"}
     conditions = get_json('configs/male_conditions.json')
     
-    save_root = Path('check_valid/male-0618094336')
+    save_root = Path('check_valid/male-0630101456')
     save_root.mkdir(exist_ok=True)
 
     save_valid = save_root/f'candidates'
@@ -279,7 +280,7 @@ def main(model, grad, model_number=0):
         save_category = save_pick/k
         save_category.mkdir(exist_ok=True)
 
-    pnp = PnPPipeline(pnp_attn_t=0.7,
+    pnp = PnPPipeline(pnp_attn_t=0.9,
                       pnp_f_t=0.8)
     guidance_scheduler = GuidanceScheduler(gradient=grad)
     
@@ -317,7 +318,7 @@ def main(model, grad, model_number=0):
             
             images = [img_dir]*batch_size
             outputs = pnp(image_dirs=images,
-                        negative_prompt='ugly, blurry, low resolution, unrealistic, paint, distortion',
+                        negative_prompt='ugly, blurry, low resolution, unrealistic, distortion',
                         prompts=[v],
                         guidance_scales=guidance,
                         latents_save_root='unpaired_image_data/male_latents/test_latents_forward')
@@ -355,7 +356,7 @@ def main(model, grad, model_number=0):
             
         df = pd.DataFrame.from_dict(metric_dict, orient='index')
         df.index.name = 'file_name'
-        df.to_csv(save_valid/f'metrics.csv')
+        df.to_csv(save_valid/f'metrics.csv')'''
 
 
 '''@torch.no_grad()
@@ -603,19 +604,19 @@ def blip_main(model, model_number, grad):
             gen_images[i].save(save_gen_img)  
 
 if __name__ == '__main__':
-    model_path = Path('ckpts/0618094336/13_model.pt')
+    model_path = Path('ckpts/0714145835-increase/18_model.pt')
     time = model_path.as_posix().split('/')[-2]
 
     model = GuidanceModel(init_g=100.0,
                           divide_out=0.05,
                           hidden_dim=768*2,
-                          num_layers=4,
+                          num_layers=6,
                           num_guidance_info=2).to('cuda')
 
     model.load_state_dict(torch.load(model_path))
     model.eval()
     
-    main(model,'decrease')
+    main(model,'increase')
 
 '''if __name__ == '__main__':
     model_path = Path('ckpts/0416222403/47_model.pt')

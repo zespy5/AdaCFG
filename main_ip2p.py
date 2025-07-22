@@ -39,16 +39,24 @@ def image_clip_embeds(image):
 
 @torch.no_grad()
 def main(model, grad):   
-    condict = {'clear day': 'a photo of a street on a clear day',
-                  'cloudy day' : 'a photo of a street on a cloudy day' ,
+    '''condict = {'clear day': 'a photo of a street on a clear day',
+                  'cloudy day' : 'a photo of a street on an overcast day' ,
                   'foggy day' : 'a photo of a street on a foggy day',
                   'rainy day' : 'a photo of a street on a rainy day',
                   'snowy day' : 'a photo of a street on a snowy day',
                   'night':'a photo of a street at night',
-                  'sunset':'a photo of a street at sunset'}
-    conditions = get_json('configs/ip2p_conditions.json')
+                  'sunset':'a photo of a street at sunset'}'''
+    condict = {"cartoon_style":'a cartoon-style dog face',
+             "cat_face":'a cat face',
+             "crochet_style":'a crochet dog face',
+             "painting_style":'a dog face in art style',
+             "glasses_dog":'a dog face wearing glasses',
+             "robot_style":'a robotic dog face',
+             "sculpture_style":'a sculpted dog face'}              
+
+    conditions = get_json('configs/ip2p_dog_condition.json')
     
-    save_root = Path('check_valid/ip2p_increase')
+    save_root = Path('check_valid/ip2p_dog')
     save_root.mkdir(exist_ok=True)
 
     save_valid = save_root/f'candidates'
@@ -64,7 +72,8 @@ def main(model, grad):
     pipe.scheduler = EulerAncestralDiscreteScheduler.from_config(pipe.scheduler.config)
     guidance_scheduler = GuidanceScheduler(gradient=grad)
     sd_clip_embedding = pipe._encode_prompt
-    data_root = Path('image_data/eval')
+    #data_root = Path('image_data/eval')
+    data_root = Path('unpaired_image_data/dog/test')
     image_dirs = sorted([*data_root.glob('*')])
     
     for k in condict.values():
@@ -97,16 +106,15 @@ def main(model, grad):
             mean_embedding = to_clip_embedding.mean(dim=0)
             
             model_input = torch.cat([img_embs, to_clip_embedding], dim=1)
-            guidance_value = model(model_input)
-            guidance = guidance_scheduler.get_guidance_scales(guidance_value)
+            guidance_value, velocity = model(model_input)
+            guidance = guidance_scheduler.get_guidance_scales(guidance_value, velocity)
 
             images = [image_tensor]*batch_size
             outputs = pipe(#prompt_embeds = ip2p_prompt_embedding,
                            prompt=v,
                            image = images,
                            num_inference_steps=50,
-                           guidance_scale=guidance,
-                           image_guidance_scale=1.6,)
+                           guidance_scale=guidance)
                            #output_type='pt')
                            #negative_prompt=['ugly, blurry, low resolution, unrealistic, paint, distortion']*batch_size)
             guidance_values = guidance_value.squeeze().cpu().numpy()
@@ -118,7 +126,7 @@ def main(model, grad):
                 p_clip = Clip(gen_images[i], condict[k])
                 n_clip = Clip(gen_images[i], negative_prompt)
                 dino = Dino(image, gen_images[i])
-                loss = (1-p_clip) + n_clip + (1-dino)*0.15
+                loss = (1-p_clip) + n_clip + (1-dino)*0.2
                 g = guidance_values.item(i)
                 save_gen_img = save_category/f'prompt-{v[i]}.png'
                 gen_images[i].save(save_gen_img)
@@ -142,16 +150,16 @@ def main(model, grad):
 
     
 if __name__ == '__main__':
-    model_path = Path('ckpts/best_ckpts/ip2p_increase_weather.pt')
+    model_path = Path('ckpts/0613181003/9_model.pt')
     time = model_path.as_posix().split('/')[-2]
 
-    model = GuidanceModel(init_g=50.0,
-                          divide_out=0.1,
+    model = GuidanceModel(init_g=100.0,
+                          divide_out=0.05,
                           hidden_dim=768*2,
-                          num_layers=8,
-                          num_guidance_info=1).to('cuda')
+                          num_layers=4,
+                          num_guidance_info=2).to('cuda')
 
     model.load_state_dict(torch.load(model_path))
     model.eval()
     
-    main(model,'increase')
+    main(model,'decrease')

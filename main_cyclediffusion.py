@@ -53,6 +53,9 @@ data_root = Path('image_data/eval')
 origin_images = sorted([*data_root.glob('*.jpg')])
 save_root = Path('check_valid/cycle-diffusion')
 save_root.mkdir(exist_ok=True)
+for c in categorys:
+    category_root = save_root/categorys[c]
+    category_root.mkdir(exist_ok=True)
 
 strength = 0.5
 num_inference_steps = 100
@@ -61,13 +64,13 @@ guidance_inference_step = strength*num_inference_steps
 guidance_scheduler = GuidanceScheduler(gradient='decrease', device='cuda', 
                                        n_timestep=guidance_inference_step)
 
-model_path = Path('ckpts/best_ckpts/decrease_weather.pt')
+model_path = Path('ckpts/0610121259/18_model.pt')
 
-model = GuidanceModel(init_g=50.0,
-                        divide_out=0.1,
+model = GuidanceModel(init_g=100.0,
+                        divide_out=0.05,
                         hidden_dim=768*2,
-                        num_layers=5,
-                        num_guidance_info=1).to('cuda')
+                        num_layers=8,
+                        num_guidance_info=2).to('cuda')
 
 model.load_state_dict(torch.load(model_path))
 model.eval()
@@ -77,13 +80,14 @@ for o_img in tqdm(origin_images):
     source_prompt = 'a photo of a street'
     image_embedding = image_clip_embeds(init_image)
     
-    for prompt in categorys:
+    for prompt in categorys.values():
         
         to_clip_embedding = prompt_embeds(prompt)
         
         model_input = torch.cat([image_embedding, to_clip_embedding], dim=1)
-        guidance_value = model(model_input)
-        guidance = guidance_scheduler.get_guidance_scales(guidance_value).to('cuda')
+        guidance_value, velocity = model(model_input)
+
+        guidance = guidance_scheduler.get_guidance_scales(guidance_value, velocity)
 
         # call the pipeline
         image = pipe(

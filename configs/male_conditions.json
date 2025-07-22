@@ -1,51 +1,51 @@
 {
-    "white_hair": [
-        "A man with pure white hair tied in a top knot.",
-        "The man has short, snowy white hair brushed back.",
-        "White hair flows past the man's shoulders in soft waves.",
-        "A man with messy white hair and a wrinkled face.",
-        "His spiky white hair gives him a striking look."
-    ],
-    "red_hair": [
-        "A man with short, bright red hair.",
-        "His curly red hair shines under the sunlight.",
-        "A man with deep crimson hair swept to the side.",
-        "The man has tousled red hair with orange highlights.",
-        "Red-dyed hair with a glossy finish covers his head."
-    ],
-    "blond_hair": [
-        "The man has straight blond hair combed to one side.",
-        "His messy blond curls fall over his forehead.",
-        "A man with platinum blond hair and a clean shave.",
-        "Short golden blond hair gives him a youthful look.",
-        "He wears a faded undercut with pale blond hair."
-    ],
-    "beard": [
-        "A man with a thick black beard covering his cheeks.",
-        "The man has a blond goatee and mustache combo.",
-        "His gray stubble gives him a rugged appearance.",
-        "A clean-shaven man with no visible facial hair.",
-        "He has a sharply trimmed dark brown beard."
-    ],
-    "tanned_skin": [
-      "The man has a deep, golden tan.",
-      "His tanned skin glows in the sun.",
-      "A man with bronzed skin and even tone.",
-      "The man has warm, sun-kissed skin.",
-      "His tan complexion shows natural radiance."
-    ],
-    "sad_expression": [
-        "The man looks down with a sad expression.",
-        "His eyes are teary and his mouth slightly downturned.",
-        "A man with a sorrowful face and distant gaze.",
-        "His sad face reflects emotional pain.",
-        "The man wears a depressed expression with slumped posture."
-    ],
-    "smiling_expression": [
-        "The man smiles brightly with his teeth showing.",
-        "A wide grin spreads across his face.",
-        "His eyes crinkle as he laughs joyfully.",
-        "The man wears a gentle smile with relaxed eyes.",
-        "He chuckles softly with a warm expression."
-    ]
-  }
+  "beard": [
+    "a person with a short beard",
+    "a person with a full beard",
+    "a person with stubble",
+    "a person with a goatee",
+    "a person with a dark beard"
+  ],
+  "white_hair": [
+    "a person with silver hair",
+    "a person with gray hair",
+    "a person with platinum hair",
+    "a person with short white hair",
+    "a person with snowy white hair"
+  ],
+  "red_hair": [
+    "a person with ginger hair",
+    "a person with auburn hair",
+    "a person with copper hair",
+    "a person with bright red hair",
+    "a person with dark red hair"
+  ],
+  "blonde_hair": [
+    "a person with golden hair",
+    "a person with ashy blonde hair",
+    "a person with light blonde hair",
+    "a person with honey blonde hair",
+    "a person with platinum blonde hair"
+  ],
+  "tanned_skin": [
+    "a person with sun-kissed skin",
+    "a person with bronze skin",
+    "a person with a golden tan",
+    "a person with olive skin",
+    "a person with a dark tan"
+  ],
+  "smiling_expression": [
+    "a person laughing",
+    "a person grinning",
+    "a person with a happy expression",
+    "a person with a big smile",
+    "a person with a gentle smile"
+  ],
+  "sad_expression": [
+    "a person crying",
+    "a person looking unhappy",
+    "a person with a sad face",
+    "a person with teary eyes",
+    "a person with a sorrowful expression"
+  ]
+}

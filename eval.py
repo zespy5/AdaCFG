@@ -434,18 +434,20 @@ def ip2p_eval(model,
                 model_input = torch.cat([image_embedding,
                                             to_clip_embedding], dim=1)
                     
-            pred_ginit = model(model_input)
+            pred_ginit, pred_velocity = model(model_input)
             
             
             loss, gen_images, _ccs, _dcs = criterion(real_image_tensor=real_image_tensor,
                                                      condition_mean=condition_mean,
                                                      sd_prompt_embedding=sd_text_embedding,
                                                      to_clip_embedding=to_clip_embedding,
-                                                     g_init=pred_ginit)
+                                                     g_init=pred_ginit,
+                                                     velocity=pred_velocity)
             t.set_postfix(loss=loss.item())
             
             mean_ccs, condition_ccs = _ccs.chunk(2)
             preds = pred_ginit.squeeze().detach().cpu().numpy()
+            preds_v = pred_velocity.squeeze().detach().cpu().numpy()
             condition_ccs = condition_ccs.detach().cpu().numpy()
             mean_ccs = mean_ccs.detach().cpu().numpy()
             struc_dcs = _dcs.detach().cpu().numpy()
@@ -457,7 +459,9 @@ def ip2p_eval(model,
                     str_w_ccs = f'{condition_ccs.item(a):.2f}'.replace('.','_')
                     str_m_ccs = f'{mean_ccs.item(a):.2f}'.replace('.','_')
                     str_dcs = f'{struc_dcs.item(a):.2f}'.replace('.','_')
-                    s = save_dir/f'{idx.item(a):04}-{int(preds.item(a))}-{selected_prompts[a]}-{selected_conditions[a]}-{str_w_ccs}-{str_m_ccs}-{str_dcs}.png'
+                    str_v = f'{preds_v.item(a):.2f}'.replace('.','_')
+                    str_g = f'{preds.item(a):.2f}'.replace('.','_')
+                    s = save_dir/f'{idx.item(a):04}-{str_g}-{str_v}-{selected_prompts[a]}-{selected_conditions[a]}-{str_w_ccs}-{str_m_ccs}-{str_dcs}.png'
                     edited_imgs[a].save(s)
                     save_origin_img = save_dir/f'{idx.item(a):04}-real_image.png'
                     real_imgs[a].save(save_origin_img)

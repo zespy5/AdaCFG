@@ -32,7 +32,9 @@ def train(config_path):
     architecture = "Attention" if config['Attention'] else "FFNN"
     timestamp = get_timestamp()
     
-    name = f'''work-{timestamp}-Zero Shot
+    name = f'''work-{timestamp}-{struct_text}
+               negative_clip {loss_config['negative_clip_use']},
+               guidance_schedule : {loss_config['gradient']},
                Model : {architecture},minus model,
                num layer : {model_config['num_layers']}, 
                num_guidacne_info : {model_config['num_guidance_info']},
@@ -48,9 +50,6 @@ def train(config_path):
                lr : {lr}, 
                lr_lambda : {config['lr_lambda']},
                batch_size {batch_size},
-               s_text {struct_text}, 
-               negative_clip {loss_config['negative_clip_use']}, 
-               guidance_schedule {loss_config['gradient']},
                image size {loss_config['image_size']},
                data len {config['data_length']}'''
                ############ WANDB INIT #############
@@ -190,7 +189,7 @@ def train(config_path):
                 total_loss += loss.item()
             epoch_loss = total_loss/len(train_dataloader)
             wandb.log(
-                {   "epoch":epoch+1,
+                {   "epoch":epoch,
                     "loss": epoch_loss,
                 }
             )
@@ -215,17 +214,18 @@ def train(config_path):
                 }
             )
         model_save_path = Path('ckpts')
-        model_save_path = model_save_path/f'{timestamp}'
+        sche = loss_config['gradient']
+        model_save_path = model_save_path/f'{timestamp}-{sche}'
         model_save_path.mkdir(exist_ok=True)
         if min_val_loss > valid_epoch_loss:
             min_val_loss = valid_epoch_loss
-            torch.save(model.state_dict(), f"./ckpts/{timestamp}/{epoch}_model.pt")
+            torch.save(model.state_dict(), f"./ckpts/{timestamp}-{sche}/{epoch}_model.pt")
                 
 
 if __name__ == '__main__':
-    train('configs/vv_config.yaml')
+    #train('configs/vv_config.yaml')
     #train('configs/vv_dog_config.yaml')
-    #train('configs/vv_male_config.yaml')
+    train('configs/vv_male_config.yaml')
 
             
             

@@ -26,6 +26,7 @@ def train(config_path):
     lr = config['learning_rate']
     batch_size = config['batch_size']
     device = config['device']
+    epochs = config['epochs']
     
     struct_text = config['train_embedding_data'].split('/')[-1].split('_')[0]
     architecture = "Attention" if config['Attention'] else "FFNN"
@@ -36,6 +37,7 @@ def train(config_path):
                num layer : {model_config['num_layers']}, 
                in size : {model_config['hidden_dim']},
                image guidance : {loss_config['image_guidance']},
+               devide_guide : {loss_config['devide_guide']},
                lambda_text : {loss_config['lambda_text']}, 
                lambda_structure : {loss_config['lambda_structure']},
                lambda_mean : {loss_config['lambda_mean']},
@@ -93,7 +95,7 @@ def train(config_path):
     save_root.mkdir(exist_ok=True, parents=True)
     
 
-    for epoch in range(50):
+    for epoch in range(epochs):
         print(f"work-{timestamp}, epoch : {epoch}")
         total_loss = 0
         save_dir = save_root/f'epoch-{epoch}'
@@ -132,14 +134,15 @@ def train(config_path):
                     model_input = torch.cat([image_embedding,
                                              to_clip_embedding], dim=1)
 
-                pred_ginit = model(model_input)
+                pred_ginit, pred_velocity = model(model_input)
                 
                 
                 loss, _g, _ccs, _dcs = criterion(real_image_tensor=real_image_tensor,
                                                  condition_mean=condition_mean,
                                                  sd_prompt_embedding=sd_text_embedding,
                                                  to_clip_embedding=to_clip_embedding,
-                                                 g_init=pred_ginit)
+                                                 g_init=pred_ginit,
+                                                 velocity=pred_velocity)
                 
                 t.set_postfix(loss=loss.item())
 
@@ -152,6 +155,7 @@ def train(config_path):
                 
                 mean_ccs, condition_ccs = _ccs.chunk(2)
                 preds = pred_ginit.squeeze().detach().cpu().numpy()
+                preds_v = pred_velocity.squeeze().detach().cpu().numpy()
                 condition_ccs = condition_ccs.detach().cpu().numpy()
                 mean_ccs = mean_ccs.detach().cpu().numpy()
                 struc_dcs = _dcs.detach().cpu().numpy()
@@ -159,6 +163,7 @@ def train(config_path):
                 for ps in range(len(preds)):
                     log_conditions_values ={}
                     log_conditions_values['g_init '+ selected_conditions[ps]] = preds.item(ps)
+                    log_conditions_values['velocity '+ selected_conditions[ps]] = preds_v.item(ps)
                     log_conditions_values['clip cosin similarity '+ selected_conditions[ps]] = condition_ccs.item(ps)
                     log_conditions_values['dino cosin similarity'] = struc_dcs.item(ps)
                     wandb.log(log_conditions_values)
@@ -176,7 +181,7 @@ def train(config_path):
                 total_loss += loss.item()
             epoch_loss = total_loss/len(train_dataloader)
             wandb.log(
-                {   "epoch":epoch+1,
+                {   "epoch":epoch,
                     "loss": epoch_loss,
                 }
             )
@@ -187,25 +192,26 @@ def train(config_path):
         optimizer_scheduler.step()
 
         valid_epoch_loss = ip2p_eval(model= model,
-                                          criterion=criterion,
-                                          eval_dataloader=eval_dataloader,
-                                          eval_prompts=eval_prompts,
-                                          domains=domains,
-                                          save_image_path=f'Evalutate_images_results/{timestamp}',
-                                          epoch=epoch,
-                                          config=config,
-                                          device=device)
+                                    criterion=criterion,
+                                    eval_dataloader=eval_dataloader,
+                                    eval_prompts=eval_prompts,
+                                    domains=domains,
+                                    save_image_path=f'Evalutate_images_results/{timestamp}',
+                                    epoch=epoch,
+                                    config=config,
+                                    device=device)
         wandb.log(
                 {   "epoch":epoch+1,
                     "valid loss": valid_epoch_loss,
                 }
             )
         model_save_path = Path('ckpts')
-        model_save_path = model_save_path/f'{timestamp}'
+        sche = loss_config['gradient']
+        model_save_path = model_save_path/f'{timestamp}-ip2p-{sche}'
         model_save_path.mkdir(exist_ok=True)
         if min_val_loss > valid_epoch_loss:
             min_val_loss = valid_epoch_loss
-            torch.save(model.state_dict(), f"./ckpts/{timestamp}/{epoch}_model.pt")
+            torch.save(model.state_dict(), f"./ckpts/{timestamp}-ip2p-{sche}/{epoch}_model.pt")
                 
 
 if __name__ == '__main__':

@@ -1,0 +1,51 @@
+{
+  "cartoon_style": [
+    "Transform the dog into a classic cartoon character.",
+    "Redraw the dog in a modern animation style.",
+    "Apply a comic book effect to the dog image.",
+    "Change the dog to look like it's from a children's cartoon.",
+    "Give the dog a simple, 2D cartoon look."
+  ],
+  "cat_face": [
+    "Change the dog into a cat.",
+    "Replace the dog with a photorealistic cat.",
+    "Morph the dog's features into those of a cat.",
+    "Imagine this dog was a cat and render the image.",
+    "Turn the dog into a fluffy cat of a similar color."
+  ],
+  "crochet_style": [
+    "Recreate the dog as a crochet amigurumi figure.",
+    "Transform the dog into a knitted wool toy.",
+    "Apply a detailed crochet texture to the dog.",
+    "Make the dog look like a handmade, crocheted animal.",
+    "Render the dog as if it were crafted from yarn."
+  ],
+  "painting_style": [
+    "Paint the dog in the style of Van Gogh's 'Starry Night'.",
+    "Turn the dog into a watercolor painting.",
+    "Reimagine the dog as a detailed oil portrait.",
+    "Apply a Japanese ukiyo-e art style to the dog.",
+    "Render the dog as a pop art piece like Andy Warhol."
+  ],
+  "glasses_dog": [
+    "Add a pair of glasses to the dog.",
+    "Make the dog wear a pair of stylish sunglasses.",
+    "Put a pair of round, nerdy glasses on the dog.",
+    "Give the dog a pair of reading glasses perched on its snout.",
+    "Equip the dog with cool, aviator sunglasses."
+  ],
+  "robot_style": [
+    "Transform the dog into a robot.",
+    "Rebuild the dog with futuristic, mechanical parts.",
+    "Give the dog a cyborg appearance with glowing eyes.",
+    "Render the dog as a chrome-plated robotic animal.",
+    "Change the dog into a steampunk-style mechanical creature."
+  ],
+  "sculpture_style": [
+    "Sculpt the dog out of marble.",
+    "Recreate the dog as a clay sculpture.",
+    "Carve the dog from a single block of wood.",
+    "Render the dog as a weathered, ancient stone statue.",
+    "Turn the dog into a polished bronze sculpture."
+  ]
+}
