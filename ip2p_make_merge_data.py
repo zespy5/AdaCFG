@@ -1,14 +1,12 @@
-from pnp import PnPPipeline
 from PIL import Image
-import matplotlib.pyplot as plt
 from pathlib import Path
-from util.guidance_scheduler import GuidanceScheduler
 import torch
 from tqdm import tqdm
-from torch.nn.functional import cosine_similarity
 from util.utils import get_json
 from diffusers import StableDiffusionInstructPix2PixPipeline
 from transformers import CLIPModel, CLIPProcessor
+import argparse
+
 clip_model = CLIPModel.from_pretrained("openai/clip-vit-large-patch14").to('cuda')
 clip_processor = CLIPProcessor.from_pretrained("openai/clip-vit-large-patch14")
 @torch.no_grad()
@@ -30,7 +28,10 @@ def image_clip_embeds(image):
         
     return image_features
 
-def main():    
+def main(args): 
+    prompts = args.augmented_prompt_path
+    instruct_prompts=args.ip2p_augmented_prompt_path
+    image_data_path = args.image_data
     
     model_id = "timbrooks/instruct-pix2pix"
     ip2p_pipe = StableDiffusionInstructPix2PixPipeline.from_pretrained(model_id, safety_checker=None).to("cuda")
@@ -41,17 +42,14 @@ def main():
     large_clip_text_embedding = prompt_embeds
     
     
-    large_conditions = get_json(f'configs/large_conditions.json')
-    instruct_condition = get_json('configs/ip2p_conditions.json')
-    for key in large_conditions.values():
-        v = set(key)
-        print(len(v))
+    large_conditions = get_json(prompts)
+    instruct_condition = get_json(instruct_prompts)
         
     conditions = list(large_conditions.keys())
 
-    image_dir = Path(f'image_data')
+    image_dir = Path(image_data_path)
     train_dir = image_dir/f'train'
-    eval_dir = image_dir/f'eval'
+    eval_dir = image_dir/f'valid'
 
     train_images = sorted([*train_dir.glob('*')])
     eval_images  = sorted([*eval_dir.glob('*')])
@@ -97,8 +95,9 @@ def main():
         return config
 
     save_root = Path('merged_latents_forwards')
+    save_root.mkdir(exist_ok=True)
     train_save = save_root/f'ip2p_train_embeddings.pt'
-    eval_save = save_root/f'ip2p_eval_embeddings.pt'
+    eval_save = save_root/f'ip2p_valid_embeddings.pt'
     
     train_data = make_config(train_images)
     torch.save(train_data, train_save)
@@ -110,7 +109,29 @@ def main():
 
 
 if __name__ == "__main__": 
-    main()
+    parser = argparse.ArgumentParser()
+    
+    parser.add_argument(
+        "--augmented_prompt_path",
+        type=str,
+        default="configs/conditions.json"
+    )
+    
+    parser.add_argument(
+        "--ip2p_augmented_prompt_path",
+        type=str,
+        default="configs/ip2p_conditions.json"
+    )
+    
+    parser.add_argument(
+        "--image_data",
+        type=str,
+        default="image_data"
+    )
+    
+    args= parser.parse_args()
+    
+    main(args)
                 
  
                 

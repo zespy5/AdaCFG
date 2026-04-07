@@ -1,87 +1,72 @@
 {
   "night": [
-    "a photograph of a street at night",
-    "Darkness fills the city, broken only by scattered lights.",
-    "The road is dark under a moonlit sky.",
-    "Faint city lights glow along the night street.",
-    "A sense of stillness fills the air under the black night.",
-    "The sky is pitch black above dimly lit streets.",
-    "The quiet of the night wraps the city in stillness.",
-    "Light reflects softly on wet pavement at night.",
-    "The road is dark with only a few night lights.",
-    "The street is quiet under the night sky."
+    "a photo of a street at night",
+    "a photo of a street under the night sky",
+    "a photo of a nighttime street scene",
+    "a photo of a street after dark",
+    "a photo of a street illuminated by moonlight"
   ],
   "sunset": [
-    "a photograph of a street at sunset",
-    "The road glows orange in the setting sun.",
-    "A warm orange hue covers the quiet street.",
-    "Sunset light reflects off windows and rooftops.",
-    "The car is approaching a roundabout slowly at sunset.",
-    "Other vehicles are visible near the roundabout at sunset.",
-    "Clouds catch fire in the evening sky.",
-    "The sky above the street turns red during sunset.",
-    "Dusk settles slowly over the sunset road.",
-    "The road glows orange in the sunset light."
+    "a photo of a street at sunset",
+    "a photo of a street during the golden hour",
+    "a photo of a street bathed in the light of the setting sun",
+    "a photo of a sunset streetscape",
+    "a photo of a street at dusk"
   ],
   "clear day": [
-    "a photograph of a street on a clear day.",
-    "Shadows are sharp and clean beneath the noon sun.",
-    "The air feels light and dry under the clear sky.",
-    "A soft breeze moves gently through the open atmosphere.",
-    "Blue stretches uninterrupted above the landscape.",
-    "Clear skies give the city a sharp, vivid look.",
-    "No clouds are visible anywhere in the sky.",
-    "A street on a clear day.",
-    "The street is bright under the daytime sky.",
-    "Blue sky and sunlight on the road and buildings."
-  ],
-  "cloudy day": [
-    "a photograph of a street on an overcast day.",
-    "Thick clouds cover the sky, muting all colors.",
-    "The city feels quiet beneath a heavy overcast.",
-    "There is no sunlight, only soft, gray light everywhere.",
-    "The atmosphere feels still under the layered clouds.",
-    "Everything looks slightly blurred under the cloudy sky.",
-    "Other vehicles are visible near the roundabout in diffused daylight.",
-    "Gray clouds spread over the quiet road.",
-    "The street is dull under an overcast sky.",
-    "A thick cloud layer covers the road above."
+    "a photo of a street on a sunny day",
+    "a photo of a sunlit street scene",
+    "a photo of a street under a bright, clear sky",
+    "a photo of a sun-drenched roadway",
+    "a photo of a street glowing in the brilliant daylight"
   ],
   "rainy day": [
-    "a photograph of a street on a rainy day.",
-    "Heavy rain pours down, flooding parts of the road.",
-    "Water flows along the curbs as raindrops continue to fall.",
-    "The entire street glistens under constant rainfall.",
-    "Puddles form quickly as rain shows no sign of stopping.",
-    "Rain clouds hang low, turning the city gray and wet.",
-    "A steady downpour blankets the landscape in motionless gray.",
-    "Light rain continues to fall on the quiet street.",
-    "Raindrops scatter across the rainy street.",
-    "The street is slick under steady rain."
+    "a photo of a street on a rainy day",
+    "a photo of a rain-slicked street",
+    "a photo of a street during a downpour",
+    "a photo of a wet street under rainy skies",
+    "a photo of a street scene in the rain"
   ],
   "snowy day": [
-    "a photograph of a street on a snowy day.",
-    "Thick snow covers the road and nearby sidewalks.",
-    "Snowflakes fall continuously, softening all city sounds.",
-    "The world looks white and silent beneath falling snow.",
-    "Frost clings to windows and traffic signs.",
-    "Visibility drops as snow continues to fill the air.",
-    "Snow piles up quickly along the road edges.",
-    "Snow blankets the road in soft white.",
-    "The street is covered in a thin layer of snow.",
-    "Snow falls in quiet, endless rhythm."
+    "a photo of a street on a snowy day",
+    "a photo of a snow-covered street",
+    "a photo of a street during a snowfall",
+    "a photo of a street blanketed in snow",
+    "a photo of a snowy streetscape"
   ],
   "foggy day": [
-    "a photograph of a street on a foggy day.",
-    "Dense fog blankets the entire street, blurring everything.",
-    "Buildings vanish into the mist as fog grows thicker.",
-    "The air feels damp and quiet under the heavy fog.",
-    "Streetlights glow faintly through the gray atmosphere.",
-    "The road fades away just a few meters ahead.",
-    "Nothing beyond the nearest intersection is visible.",
-    "A layer of mist hovers low over the pavement.",
-    "The road is barely visible through the heavy fog.",
-    "The road fades into thick fog.",
-    "A dense fog covers the foggy street."
+    "a photo of a street on a foggy day",
+    "a photo of a street shrouded in fog",
+    "a photo of a street with low visibility due to fog",
+    "a photo of a foggy street scene",
+    "a photo of a street enveloped in mist"
+  ],
+  "spring": [
+    "a photo of a street in spring",
+    "a photo of a street with blooming spring flowers",
+    "a photo of a street coming to life in springtime",
+    "a photo of a spring scene on a street",
+    "a photo of a street with the fresh green leaves of spring"
+  ],
+  "summer": [
+    "a photo of a street in summer",
+    "a photo of a street on a hot summer day",
+    "a photo of a street with lush summer foliage",
+    "a photo of a summer streetscape",
+    "a photo of a street under the bright summer sun"
+  ],
+  "autumn": [
+    "a photo of a street in autumn",
+    "a photo of a street with colorful autumn leaves",
+    "a photo of a street covered in the fallen leaves of fall",
+    "a photo of an autumn street scene",
+    "a photo of a street during the crisp autumn season"
+  ],
+  "winter": [
+    "a photo of a street in winter",
+    "a photo of a street on a cold winter day",
+    "a photo of a street with bare, frosty trees",
+    "a photo of a wintry street scene",
+    "a photo of a street in the quiet of winter"
   ]
 }

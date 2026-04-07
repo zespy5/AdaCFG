@@ -10,5 +10,8 @@ ckpts
 train
 # image data
 *image_data
+*images_data
 *.ipynb
 check*
+.vscode
+main3.py

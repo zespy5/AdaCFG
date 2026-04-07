@@ -13,13 +13,11 @@ from pytorch_lightning import seed_everything
 from torch.utils.data import DataLoader
 from pathlib import Path
 import torchvision.transforms as T
-from eval import vv_eval
-from PIL import Image
-from random import randint
+from util.eval import eval
+import argparse
 
-
-
-def train(config_path):
+def train(args):
+    config_path = args.config
     config = get_config(config_path)
     model_config = config['model']
     loss_config = config['loss']
@@ -29,17 +27,14 @@ def train(config_path):
     epochs = config['epoch']
     
     struct_text = config['train_embedding_data'].split('/')[-1].split('_')[0]
-    architecture = "Attention" if config['Attention'] else "FFNN"
     timestamp = get_timestamp()
     
     name = f'''work-{timestamp}-{struct_text}
                negative_clip {loss_config['negative_clip_use']},
                guidance_schedule : {loss_config['gradient']},
-               Model : {architecture},minus model,
                num layer : {model_config['num_layers']}, 
                num_guidacne_info : {model_config['num_guidance_info']},
                in size : {model_config['hidden_dim']},
-               heads : {model_config['heads']},
                pnp : {loss_config['pnp_injection_rate']},
                lambda_text : {loss_config['lambda_text']}, 
                lambda_structure : {loss_config['lambda_structure']},
@@ -78,17 +73,15 @@ def train(config_path):
     eval_dataset = DomainChangeZeroShotDataset(data_directory=config['eval_data_root'],
                                              latents_path=config['eval_latent_data'],
                                              embedding_path=config['eval_embedding_data'],
-                                             data_length=100)
+                                             data_length=config['valid_data_length'])
     eval_dataloader = DataLoader(eval_dataset, batch_size=10)
     eval_prompts = eval_dataset.text_embeddings
     
     domains = train_dataset.conditions
     
-    if config['Attention']:
-        model = AttentionModel(**model_config).to(device) 
-    else:
-        model_config['hidden_dim'] = model_config['hidden_dim']*model_config['length']
-        model = GuidanceModel(**model_config).to(device) 
+
+    model_config['hidden_dim'] = model_config['hidden_dim']*model_config['length']
+    model = GuidanceModel(**model_config).to(device) 
 
     optimizer = torch.optim.Adam(model.parameters(), lr)
     optimizer_scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer=optimizer,
@@ -98,7 +91,9 @@ def train(config_path):
     
     save_root = Path(f'Train_images_results/{timestamp}')
     save_root.mkdir(exist_ok=True, parents=True)
-
+    model_save_path = Path('ckpts')
+    model_save_path.mkdir(exist_ok=True)
+    
 
     for epoch in range(epochs):
         print(f"work-{timestamp}, epoch : {epoch}")
@@ -134,12 +129,7 @@ def train(config_path):
                 to_clip_embedding = to_clip_embedding.to(device)
                 
 
-                if config['Attention']:
-                    model_input = torch.cat([image_embedding,
-                                             to_clip_embedding], dim=1).view(len(idx), model_config['length'], -1)
-                else:
-                    model_input = torch.cat([image_embedding,
-                                             to_clip_embedding], dim=1)
+                model_input = torch.cat([image_embedding, to_clip_embedding], dim=1)
 
                 pred_ginit, pred_velocity = model(model_input)
 
@@ -159,13 +149,10 @@ def train(config_path):
                 loss.backward()
                 optimizer.step()
                 
-                
-                
-                mean_ccs, condition_ccs = _ccs.chunk(2)
+
                 preds = pred_ginit.squeeze().detach().cpu().numpy()
                 preds_v = pred_velocity.squeeze().detach().cpu().numpy()
-                condition_ccs = condition_ccs.detach().cpu().numpy()
-                mean_ccs = mean_ccs.detach().cpu().numpy()
+                condition_ccs = _ccs.detach().cpu().numpy()
                 struc_dcs = _dcs.detach().cpu().numpy()
                 
                 for ps in range(len(preds)):
@@ -180,9 +167,8 @@ def train(config_path):
                     edited_imgs = [T.ToPILImage()(latent) for latent in _g]
                     for a in range(len(edited_imgs)):
                         str_w_ccs = f'{condition_ccs.item(a):.2f}'.replace('.','_')
-                        str_m_ccs = f'{mean_ccs.item(a):.2f}'.replace('.','_')
                         str_dcs = f'{struc_dcs.item(a):.2f}'.replace('.','_')
-                        s = save_dir/f'{idx.item(a):04}-{int(preds.item(a))}-{selected_prompts[a]}-{selected_conditions[a]}-{str_w_ccs}-{str_m_ccs}-{str_dcs}.png'
+                        s = save_dir/f'{idx.item(a):04}-{int(preds.item(a))}-{selected_prompts[a]}-{selected_conditions[a]}-{str_w_ccs}-{str_dcs}.png'
                         edited_imgs[a].save(s)
                     
                 wandb.log({"step loss" : loss})
@@ -194,38 +180,49 @@ def train(config_path):
                 }
             )
             if min_loss > epoch_loss:
+                train_model_save_path = model_save_path/'train_save'
+                train_model_save_path.mkdir(exist_ok=True)
                 min_loss = epoch_loss
-                torch.save(model.state_dict(), f"./ckpts/train_save/{timestamp}_train_model.pt")
+                train_model_name = train_model_save_path /f'{timestamp}_train_model.pt'
+                torch.save(model.state_dict(), train_model_name)
         
         optimizer_scheduler.step()
 
-        valid_epoch_loss = vv_eval(model= model,
-                                          criterion=criterion,
-                                          eval_dataloader=eval_dataloader,
-                                          eval_prompts=eval_prompts,
-                                          domains=domains,
-                                          save_image_path=f'Evalutate_images_results/{timestamp}',
-                                          epoch=epoch,
-                                          config=config,
-                                          device=device)
+        valid_epoch_loss = eval(model= model,
+                                criterion=criterion,
+                                eval_dataloader=eval_dataloader,
+                                eval_prompts=eval_prompts,
+                                domains=domains,
+                                save_image_path=f'Evalutate_images_results/{timestamp}',
+                                epoch=epoch,
+                                device=device)
         wandb.log(
-                {   "epoch":epoch+1,
+                {   "epoch":epoch,
                     "valid loss": valid_epoch_loss,
                 }
             )
-        model_save_path = Path('ckpts')
+
         sche = loss_config['gradient']
-        model_save_path = model_save_path/f'{timestamp}-{sche}'
-        model_save_path.mkdir(exist_ok=True)
+        valid_model_save_path = model_save_path/f'{timestamp}-{sche}'
+        valid_model_save_path.mkdir(exist_ok=True, parents=True)
         if min_val_loss > valid_epoch_loss:
             min_val_loss = valid_epoch_loss
-            torch.save(model.state_dict(), f"./ckpts/{timestamp}-{sche}/{epoch}_model.pt")
+            valid_model_name = valid_model_save_path/f'{epoch}_model.pt'
+            torch.save(model.state_dict(), valid_model_name)
                 
 
 if __name__ == '__main__':
-    #train('configs/vv_config.yaml')
-    #train('configs/vv_dog_config.yaml')
-    train('configs/vv_male_config.yaml')
+    parser = argparse.ArgumentParser()
+    
+    parser.add_argument(
+        "--config",
+        type=str,
+        default="configs/config.yaml"
+    )
+
+    args= parser.parse_args()
+    train(args)
+
 
             
             

@@ -7,7 +7,7 @@ import torchvision.transforms as T
 from PIL import Image
 import yaml
 from tqdm import tqdm
-from transformers import logging, BlipProcessor, BlipForConditionalGeneration
+from transformers import logging
 from diffusers import DDIMScheduler, StableDiffusionPipeline
 from diffusers.utils import BaseOutput
 from util.pnp_utils import *
@@ -23,16 +23,12 @@ class PnPPipeline(nn.Module):
                  device : str = 'cuda',
                  pnp_attn_t : float = 0.9,
                  pnp_f_t : float = 0.9,
-                 blip_use : bool = False,
-                 blip_init_text :str = "a photography of",
                  tensor_out : bool = False,
                  image_size : int = 512,
                  ):
         super().__init__()
 
         self.device = device
-        self.blip_use = blip_use #if only input the condition
-        self.blip_init_text = blip_init_text
         self.latents_steps = latents_steps
         self.n_timestep=n_timestep
         self.pnp_attn_t = int(n_timestep*pnp_attn_t)
@@ -52,7 +48,7 @@ class PnPPipeline(nn.Module):
         self.unet = pipe.unet
 
         self.scheduler = DDIMScheduler.from_pretrained(model_key, subfolder="scheduler")
-
+        self.scheduler.set_timesteps(self.latents_steps, device=self.device)
         self.inversion_timesteps = reversed(self.scheduler.timesteps)
         self.scheduler.set_timesteps(self.n_timestep, device=self.device)
 
@@ -60,10 +56,6 @@ class PnPPipeline(nn.Module):
         self.image_processor = None
         self.i2t_model = None
         
-        if self.blip_use:
-            self.image_processor = BlipProcessor.from_pretrained("Salesforce/blip-image-captioning-large") 
-            self.i2t_model = BlipForConditionalGeneration.from_pretrained("Salesforce/blip-image-captioning-large").to(self.device)
-            
         self.init_pnp(self.pnp_f_t, self.pnp_attn_t)
         
         for p in self.vae.parameters():
@@ -82,23 +74,6 @@ class PnPPipeline(nn.Module):
         register_attention_control_efficient(self, self.qk_injection_timesteps)
         register_conv_control_efficient(self, self.conv_injection_timesteps)
        
-        
-    @torch.no_grad()
-    def generate_prompt(self, image_dirs):
-        if isinstance(image_dirs[0], Path):
-            images = [Image.open(img) for img in image_dirs]
-        else:
-            images = image_dirs
-        
-        text = [self.blip_init_text]*len(images)
-
-        inputs = self.image_processor(images, text, return_tensors="pt").to(self.device)
-        
-        outputs = self.i2t_model.generate(**inputs)
-
-        captions = [self.image_processor.decode(out, skip_special_tokens=True) for out in outputs]
-
-        return captions
         
         
     @torch.no_grad()
@@ -128,7 +103,7 @@ class PnPPipeline(nn.Module):
         else:
             source_latents = self.image_latents[:,i]
             
-        _xs = [x]*(self.num_condition+1)
+        _xs = [x]*2
         latent_model_input = torch.cat([source_latents] + _xs)
         # latent_model_input [batch*(num_condition+2), 4, 64, 64]
 
@@ -145,22 +120,14 @@ class PnPPipeline(nn.Module):
             noise_pred = self.unet(latent_model_input, t, encoder_hidden_states=text_embed_input)['sample']
         
         # perform guidance
-        _num_condition = self.num_condition+2
-        noise_pred = noise_pred.chunk(_num_condition)
-        origin_noise = noise_pred[0]
-        noise_pred_uncond = noise_pred[1]
-        noise_pred_conds = noise_pred[2:]
-
+        noise_pred = noise_pred.chunk(3)
+        #origin_noise = noise_pred[0]
         
-        likelihood = torch.zeros_like(noise_pred_uncond)
-        guide = self.guidance_scales[:,i].view(batch_size,1,1,1)
-        for c in range(self.num_condition):
-            g_portion = self.guidance_portion[:,c].view(batch_size,1,1,1)
-            likelihood += g_portion*(noise_pred_conds[c] - noise_pred_uncond)
+        noise_pred_uncond = noise_pred[1]
+        noise_pred_conds = noise_pred[2]
 
-        adaptive_likelihood = guide*likelihood
-        noise_pred = noise_pred_uncond + adaptive_likelihood
-        noise_pred = self.origin_alpha*origin_noise + (1-self.origin_alpha)*noise_pred
+        guide = self.guidance_scales[:,i].view(batch_size,1,1,1)
+        noise_pred = noise_pred_uncond + guide*(noise_pred_conds - noise_pred_uncond)
 
         # compute the denoising step with the reference model
         denoised_latent = self.scheduler.step(noise_pred, t, x)['prev_sample']
@@ -205,19 +172,12 @@ class PnPPipeline(nn.Module):
                  negative_prompt: Optional[str] = None,
                  negative_prompt_embeddings : Optional[torch.Tensor] = None,
                  
-                 blip_conditions : Optional[Union[str, List[str]]] = None,
-                 num_condition : int = 1,
-                 
-                 origin_alpha : Optional[torch.Tensor] = None,
                  guidance_scales : Optional[torch.Tensor] = None,
-                 guidance_portion : Optional[torch.Tensor] = None,
                  
                  latents_save_root : str = 'latents_forward',
                  ):
 
-        #setting the number of conditions
-        self.num_condition = num_condition
-        register_condition_num(self, self.num_condition)
+        register_condition_num(self)
         
         self.image_latents = image_latents
         self.prompts_embeddings = prompts_embeddings
@@ -257,21 +217,11 @@ class PnPPipeline(nn.Module):
         batch_size = zT.shape[0]
 
         if self.prompts_embeddings is None:
-            #image to text
-            if self.blip_use:
-                assert blip_conditions is not None, 'if you want to use blip, input the blip condition but not prompts'
-                i2t = self.generate_prompt(image_dirs)
-                #combine with condition
-                prompts = [[i2t[i]+blip_conditions[j][i] for i in range(batch_size)] for j in range(self.num_condition)]
-            elif prompts is None:
-                prompts = ""
-                print(f"Warning : the prompt is Null text")
-                
             # text encoding
-            text_embeds = [self.get_text_embeds(prompts[i]) for i in range(num_condition)]
-            self.text_embeds = torch.cat(text_embeds)
+            self.text_embeds = self.get_text_embeds(prompts)
         else:
             self.text_embeds = self.prompts_embeddings
+            
         
         if self.negative_prompt_embeddings is None:
             # text_embeds [batch_size*numcondition, 77, 768]
@@ -285,10 +235,6 @@ class PnPPipeline(nn.Module):
         pnp_guidance_embeds : torch.Tensor = self.get_text_embeds("")
         self.pnp_guidance_embeds = pnp_guidance_embeds.repeat(batch_size,1,1)
         
-        # define origin alpha
-        self.origin_alpha = 0 if origin_alpha is None else origin_alpha
-        
-        
         # define guidance scales
         if guidance_scales is None:
             alpha = self.scheduler.alphas_cumprod.to(self.device)
@@ -297,12 +243,6 @@ class PnPPipeline(nn.Module):
             self.guidance_scales  = _guidance
         else:
             self.guidance_scales = guidance_scales
-            
-        if guidance_portion is None:
-            self.guidance_portion = (torch.ones((batch_size,self.num_condition))/self.num_condition).to(self.device)
-        else:
-            self.guidance_portion = guidance_portion
-        
         
         # denoising
         decoded_latent = self.sample_loop(zT)

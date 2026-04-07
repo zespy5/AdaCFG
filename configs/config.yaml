@@ -1,0 +1,52 @@
+seed : 42
+device : "cuda"
+
+#dataset
+train_data_root : './image_data/train'
+train_latent_data : 'merged_latents_forwards/train_latents.pt'
+train_embedding_data : 'merged_latents_forwards/image_data_train_embeddings.pt'
+eval_data_root : './image_data/valid'
+eval_latent_data : 'merged_latents_forwards/valid_latents.pt'
+eval_embedding_data : 'merged_latents_forwards/image_data_valid_embeddings.pt'
+data_length : 2000
+valid_data_length : 100
+
+#train_data_root : './side_view_images_data/train'
+#train_latent_data : 'merged_latents_forwards/side_view_images_data_train_latents.pt'
+#train_embedding_data : 'merged_latents_forwards/side_view_images_data_train_embeddings.pt'
+#eval_data_root : './side_view_images_data/valid'
+#eval_latent_data : 'merged_latents_forwards/side_view_images_data_valid_latents.pt'
+#eval_embedding_data : 'merged_latents_forwards/side_view_images_data_valid_embeddings.pt'
+#data_length : 4000
+#valid_data_length : 200
+
+batch_size : 5
+learning_rate : 2.0e-7
+lr_lambda : 0.9
+epoch : 20
+
+model:
+    init_g : 100.0
+    divide_out : 0.05
+    num_guidance_info : 2
+    hidden_dim : 768
+    num_layers : 8
+    length : 2
+
+loss:
+    negative_prompt: 'unrealistic, distortion, blurry'
+    lambda_text : 0.5
+    lambda_structure : 0.12
+    lambda_mean : 0.5
+    lambda_negative : 0.8
+    num_condition : 1
+    pnp_injection_rate : 0.9
+    pnp_res_injection_rate : 0.9
+    negative_clip_use : True
+    image_size : 512
+    gradient : 'decrease'
+    schedule_method : 'cosine'
+    n_timestep :  50
+    latents_steps : 50
+
+

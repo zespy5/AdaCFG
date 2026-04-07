@@ -1,51 +1,80 @@
 {
   "clear day": [
-    "Change the street scene to a clear, sunny day.",
-    "Add bright sunlight casting long shadows on the street.",
-    "Make the street scene vibrant and sun-drenched.",
-    "Fill the street scene with the warm glow of an afternoon sun.",
-    "Render the street under a clear blue sky."
+    "Change the street scene to a clear, sunny day",
+    "Add bright sunlight casting long shadows on the street",
+    "Make the street scene vibrant and sun-drenched",
+    "Fill the street scene with the warm glow of an afternoon sun",
+    "Change the road scene to be bright under a clear, sunny sky"
   ],
   "night": [
-    "Change the street scene to night.",
-    "Add bright streetlights and glowing windows to the dark street.",
-    "Render the street under a dark sky with stars.",
-    "Make the street scene a quiet, empty city street at night.",
-    "Set the scene on a bustling city street at night."
+    "Change the street scene to night",
+    "Make the street scene night",
+    "Render the street under a dark sky with stars",
+    "Make the street scene a quiet, empty city street at night",
+    "Set the scene on a bustling city street at night"
   ],
   "sunset": [
-    "Change the street scene to sunset.",
-    "Add the warm, golden hour light to the street scene.",
-    "Render the street scene with a beautiful, orange sunset sky.",
-    "Cast long, dramatic shadows across the street during sunset.",
-    "Make the street scene glow with the vibrant colors of the sunset."
+    "Change the street scene to sunset",
+    "Add the warm, golden hour light to the street scene",
+    "Render the street scene with a beautiful, orange sunset sky",
+    "Cast long, dramatic shadows across the street during sunset",
+    "Make the street scene glow with the vibrant colors of the sunset"
   ],
   "rainy day": [
-    "Change the street scene to a rainy day.",
-    "Add heavy rain, making the street pavement wet and reflective.",
-    "Make it rain on the street.",
-    "Create a street scene during a gentle downpour, with wet asphalt.",
-    "Render a moody, rain-slicked street."
+    "Change the street scene to a rainy day",
+    "Add heavy rain, making the street pavement wet and reflective",
+    "Make it rain on the street",
+    "Create a street scene during a gentle downpour, with wet asphalt",
+    "Render a moody, rain-slicked street"
   ],
   "foggy day": [
-    "Change the street scene to a foggy morning.",
-    "Add thick fog to the street, partially obscuring buildings.",
-    "Create a mysterious street scene shrouded in dense fog.",
-    "Cover the street in a light mist, with streetlights glowing.",
-    "Set the street scene on a cold and foggy day, with low visibility."
+    "Change the street scene to a foggy day",
+    "Add thick fog to the street",
+    "make the street scene foggy",
+    "make it foggy on the street",
+    "make the street scene a foggy day"
   ],
   "snowy day": [
-    "Change the street scene to a snowy day.",
-    "Cover the street and buildings with a layer of fresh snow.",
-    "Add gently falling snowflakes over the quiet street.",
-    "Create a peaceful, winter street scene covered in snow.",
-    "Turn the street into a scene from a heavy snowstorm."
+    "Change the street scene to a snowy day",
+    "Cover the street and buildings with a layer of fresh snow",
+    "Add gently falling snowflakes over the quiet street",
+    "Create a peaceful, winter street scene covered in thick snow",
+    "Turn the street into a scene from a heavy snowstorm"
   ],
   "cloudy day": [
-    "Change the street scene to an overcast day.",
-    "Cover the sky above the street with thick, gray clouds.",
-    "Make the street scene look gloomy under an overcast sky.",
-    "Apply soft, diffused lighting to the street from a cloudy sky.",
-    "Set the street scene on a cool, cloudy afternoon."
+    "Change the road scene to an overcast day",
+    "Modify the sky above the street to be covered with thick, gray clouds",
+    "Make the street scene look gloomy on an overcast day",
+    "Render the street under a cloudy day",
+    "Change the atmosphere to that of a cool, cloudy afternoon"
+  ],
+  "spring": [
+    "Change the street scene to spring",
+    "Modify the trees along the street so they are blooming with cherry blossoms",
+    "Make the leaves on the trees fresh and vibrant green",
+    "Create a gentle spring shower, making the pavement glisten",
+    "Change the street's atmosphere to be bright and fresh like spring"
+  ],
+  "summer": [
+    "Change the street scene to a street lined with bright sunflowers",
+    "Change the street scene to summer",
+    "Make the street scene bright and sunny",
+    "Fill the trees with lush, deep green foliage",
+    "Add a sense of intense summer heat to the scene",
+    "Make the street scene summer-like with bright, sunny weather"
+  ],
+  "autumn": [
+    "Change the street scene to an autumn",
+    "Modify the street so it is covered with fallen leaves",
+    "Transform the leaves on the trees into shades of red, orange, and yellow",
+    "Alter the atmosphere to feel crisp and clear like autumn",
+    "Change the lighting to the warm, golden glow of an autumn afternoon"
+  ],
+  "winter": [
+    "Change the street scene to winter",
+    "Cover the street and buildings with a blanket of snow",
+    "Add gently falling snowflakes from the sky",
+    "Make the trees bare and cover their branches with frost",
+    "Create a cold and still winter atmosphere on the street"
   ]
 }

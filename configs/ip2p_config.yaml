@@ -4,33 +4,31 @@ device : "cuda"
 #dataset
 train_data_root : './image_data/train'
 train_embedding_data : 'merged_latents_forwards/ip2p_train_embeddings.pt'
-eval_data_root : './image_data/eval'
-eval_embedding_data : 'merged_latents_forwards/ip2p_eval_embeddings.pt'
+eval_data_root : './image_data/valid'
+eval_embedding_data : 'merged_latents_forwards/ip2p_valid_embeddings.pt'
 data_length : 1000
 batch_size : 5
 learning_rate : 2.0e-7
 lr_lambda : 0.9
 epochs : 20
-Attention : False
 
 model:
-    init_g : 100.0
+    init_g : 50.0
     divide_out : 0.05
     num_guidance_info : 2
     hidden_dim : 768
     num_layers : 8
-    heads : 4
     length : 2
 
 loss:
     negative_prompt: 'ugly, blurry, low resolution, unrealistic, distortion'
-    lambda_text : 0.1
-    lambda_structure : 0.9
-    lambda_mean : 0.9
-    lambda_negative : 1.0
+    lambda_text : 0.3
+    lambda_structure : 0.5
+    lambda_mean : 0.7
+    lambda_negative : 0.8
     n_timestep : 50
     image_guidance : 1.0
-    devide_guide : 2.0
+    devide_guide : 10.0
     negative_clip_use : True
     gradient : 'decrease'
     schedule_method : 'cosine'

@@ -1,0 +1,123 @@
+{
+  "night": [
+    "a photo of a street at night",
+    "a photo of a street under the night sky",
+    "a photo of a nighttime street scene",
+    "a photo of a street after dark",
+    "a photo of a street illuminated by moonlight",
+    "a photo of an urban road in the darkness",
+    "a photo of a street with glowing neon signs",
+    "a photo of a wet street reflecting city lights at night",
+    "a photo of a quiet residential street with warm light from windows"
+  ],
+  "sunset": [
+    "a photo of a street at sunset",
+    "a photo of a street during the golden hour",
+    "a photo of a street bathed in the light of the setting sun",
+    "a photo of a sunset streetscape",
+    "a photo of a street at dusk",
+    "a photo of a street with the sun dipping below the horizon",
+    "a photo of a street with a sky painted in orange and pink hues",
+    "a photo of a street with long shadows stretching across the pavement",
+    "a photo of buildings silhouetted against a vibrant sunset"
+  ],
+  "clear day": [
+    "a photo of a street on a sunny day",
+    "a photo of a sunlit street scene",
+    "a photo of a street under a bright, clear sky",
+    "a photo of a sun-drenched roadway",
+    "a photo of a street glowing in the brilliant daylight",
+    "a photo of a street bathed in bright sunshine",
+    "a photo of a street with sharp, defined shadows",
+    "a photo of a bustling street with people enjoying the warm weather",
+    "a photo of a street where colors appear vivid and saturated"
+  ],
+  "cloudy day": [
+    "a photo of a street on an overcast day",
+    "a photo of a street under a cloudy sky",
+    "a photo of a street on a gloomy, gray day",
+    "a photo of an overcast street scene",
+    "a photo of a street with a sky full of clouds",
+    "a photo of a street under soft, diffused light",
+    "a photo of a street where no direct shadows are visible",
+    "a photo of a moody street with a heavy cloud cover",
+    "a photo of a street with muted colors under an overcast sky"
+  ],
+  "rainy day": [
+    "a photo of a street on a rainy day",
+    "a photo of a rain-slicked street",
+    "a photo of a street during a downpour",
+    "a photo of a wet street under rainy skies",
+    "a photo of a street scene in the rain",
+    "a photo of a street with puddles from the rain",
+    "a photo of a street with reflections of lights on the wet ground",
+    "a photo of people walking with umbrellas on a rainy street",
+    "a photo of a street looking gloomy and atmospheric in the rain"
+  ],
+  "snowy day": [
+    "a photo of a street on a snowy day",
+    "a photo of a snow-covered street",
+    "a photo of a street during a snowfall",
+    "a photo of a street blanketed in snow",
+    "a photo of a snowy streetscape",
+    "a photo of a street in a winter snow scene",
+    "a photo of a quiet street muffled by a layer of fresh snow",
+    "a photo of a street with gentle snowflakes filling the air",
+    "a photo of a street with footprints left in the pristine snow"
+  ],
+  "foggy day": [
+    "a photo of a street on a foggy day",
+    "a photo of a street shrouded in fog",
+    "a photo of a street with low visibility due to fog",
+    "a photo of a foggy street scene",
+    "a photo of a street enveloped in mist",
+    "a photo of a street where fog hangs in the air",
+    "a photo of a street where distant buildings fade into the fog",
+    "a photo of a mysterious and eerie street in the fog",
+    "a photo of streetlights creating soft halos in the mist"
+  ],
+  "spring": [
+    "a photo of a street in spring",
+    "a photo of a street with blooming spring flowers",
+    "a photo of a street coming to life in springtime",
+    "a photo of a spring scene on a street",
+    "a photo of a street with the fresh green leaves of spring",
+    "a photo of a street during the spring season",
+    "a photo of a street lined with blossoming cherry trees",
+    "a photo of a street glistening after a light spring shower",
+    "a photo of a street with vibrant tulips and daffodils"
+  ],
+  "summer": [
+    "a photo of a street in summer",
+    "a photo of a street on a hot summer day",
+    "a photo of a street with lush summer foliage",
+    "a photo of a summer streetscape",
+    "a photo of a street under the bright summer sun",
+    "a photo of a street scene in the midst of summer",
+    "a photo of a street where the heat seems to rise from the pavement",
+    "a photo of a street with deep green trees offering cool shade",
+    "a photo of a long, lazy summer evening on a street"
+  ],
+  "autumn": [
+    "a photo of a street in autumn",
+    "a photo of a street with colorful autumn leaves",
+    "a photo of a street covered in the fallen leaves of fall",
+    "a photo of an autumn street scene",
+    "a photo of a street during the crisp autumn season",
+    "a photo of a street with the warm colors of autumn",
+    "a photo of a street with red and gold leaves scattered by the wind",
+    "a photo of a street bathed in the warm, golden light of autumn",
+    "a photo of a cozy street scene with a cool autumn breeze"
+  ],
+  "winter": [
+    "a photo of a street in winter",
+    "a photo of a street on a cold winter day",
+    "a photo of a street with bare, frosty trees",
+    "a photo of a wintry street scene",
+    "a photo of a street in the quiet of winter",
+    "a photo of a street scene during the winter season",
+    "a photo of a street with icicles hanging from the rooftops",
+    "a photo of a street where you can see your breath in the cold air",
+    "a photo of a street decorated with festive holiday lights"
+  ]
+}

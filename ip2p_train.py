@@ -2,24 +2,21 @@ import dotenv
 import os
 import wandb
 import torch
-import numpy as np
 from data.Dataset import DomainChangeIP2PDataset
 from util.loss import IP2PLoss
 from util.utils import *
 from models.model import *
-import yaml
 from tqdm import tqdm
 from pytorch_lightning import seed_everything
 from torch.utils.data import DataLoader
 from pathlib import Path
 import torchvision.transforms as T
-from eval import ip2p_eval
-from PIL import Image
-from random import randint
+from util.eval import ip2p_eval
+import argparse
 
 
-
-def train(config_path):
+def train(args):
+    config_path = args.config
     config = get_config(config_path)
     model_config = config['model']
     loss_config = config['loss']
@@ -29,11 +26,9 @@ def train(config_path):
     epochs = config['epochs']
     
     struct_text = config['train_embedding_data'].split('/')[-1].split('_')[0]
-    architecture = "Attention" if config['Attention'] else "FFNN"
     timestamp = get_timestamp()
     
     name = f'''work-{timestamp}-InstructPix2Pix
-               Model : {architecture},
                num layer : {model_config['num_layers']}, 
                in size : {model_config['hidden_dim']},
                image guidance : {loss_config['image_guidance']},
@@ -79,11 +74,8 @@ def train(config_path):
     
     domains = train_dataset.conditions
     
-    if config['Attention']:
-        model = AttentionModel(**model_config).to(device) 
-    else:
-        model_config['hidden_dim'] = model_config['hidden_dim']*model_config['length']
-        model = GuidanceModel(**model_config).to(device) 
+    model_config['hidden_dim'] = model_config['hidden_dim']*model_config['length']
+    model = IP2PGuidanceModel(**model_config).to(device) 
 
     optimizer = torch.optim.Adam(model.parameters(), lr)
     optimizer_scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer=optimizer,
@@ -93,6 +85,8 @@ def train(config_path):
     
     save_root = Path(f'Train_images_results/{timestamp}')
     save_root.mkdir(exist_ok=True, parents=True)
+    model_save_path = Path('ckpts')
+    model_save_path.mkdir(exist_ok=True)
     
 
     for epoch in range(epochs):
@@ -127,12 +121,7 @@ def train(config_path):
                 to_clip_embedding = to_clip_embedding.to(device)
                 
 
-                if config['Attention']:
-                    model_input = torch.cat([image_embedding,
-                                             to_clip_embedding], dim=1).view(len(idx), model_config['length'], -1)
-                else:
-                    model_input = torch.cat([image_embedding,
-                                             to_clip_embedding], dim=1)
+                model_input = torch.cat([image_embedding, to_clip_embedding], dim=1)
 
                 pred_ginit, pred_velocity = model(model_input)
                 
@@ -186,6 +175,8 @@ def train(config_path):
                 }
             )
             if min_loss > epoch_loss:
+                train_model_save_path = model_save_path/'train_save'
+                train_model_save_path.mkdir(exist_ok=True)
                 min_loss = epoch_loss
                 torch.save(model.state_dict(), f"./ckpts/train_save/{timestamp}_train_model.pt")
         
@@ -201,20 +192,30 @@ def train(config_path):
                                     config=config,
                                     device=device)
         wandb.log(
-                {   "epoch":epoch+1,
+                {   "epoch":epoch,
                     "valid loss": valid_epoch_loss,
                 }
             )
-        model_save_path = Path('ckpts')
+
         sche = loss_config['gradient']
         model_save_path = model_save_path/f'{timestamp}-ip2p-{sche}'
-        model_save_path.mkdir(exist_ok=True)
+        model_save_path.mkdir(exist_ok=True, parents=True)
         if min_val_loss > valid_epoch_loss:
             min_val_loss = valid_epoch_loss
             torch.save(model.state_dict(), f"./ckpts/{timestamp}-ip2p-{sche}/{epoch}_model.pt")
                 
 
 if __name__ == '__main__':
-    train('configs/ip2p_config.yaml')
+    parser = argparse.ArgumentParser()
+    
+    parser.add_argument(
+        "--config",
+        type=str,
+        default="configs/ip2p_config.yaml"
+    )
+
+    args= parser.parse_args()
+
+    train(args)
 
             
