@@ -140,16 +140,16 @@ figure.image {
 
 figure.image img {
     display: inline-block;
-    max-width: 720px;
-    max-height: 420px;
+    max-width: 100%;
+    max-height: 560px;
     width: auto;
     height: auto;
     border-radius: 4px;
 }
 
 figure.image.fig-compact img {
-    max-width: 520px;
-    max-height: 340px;
+    max-width: 640px;
+    max-height: 460px;
 }
 
 figure.image.fig-xsmall img {
