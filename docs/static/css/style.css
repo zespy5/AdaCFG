@@ -151,3 +151,8 @@ figure.image.fig-compact img {
     max-width: 520px;
     max-height: 340px;
 }
+
+figure.image.fig-xsmall img {
+    max-width: 400px;
+    max-height: 260px;
+}
