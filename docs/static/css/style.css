@@ -148,11 +148,11 @@ figure.image img {
 }
 
 figure.image.fig-compact img {
-    max-width: 640px;
-    max-height: 460px;
+    max-width: 600px;
+    max-height: 800px;
 }
 
 figure.image.fig-xsmall img {
-    max-width: 350px;
-    max-height: 200px;
+    max-width: 400px;
+    max-height: 300px;
 }

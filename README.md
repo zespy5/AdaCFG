@@ -7,10 +7,8 @@
 
 Official implementation of **"Adaptive Classifier-Free Guidance for Robust Image-to-Image Translation"** (IEEE Access, Vol. 14, 2026).
 
-**Authors:** Bongguk Son, Sangryul Jeon<sup>&#8224;</sup> &nbsp;&nbsp;·&nbsp;&nbsp; School of Computer Science and Engineering, Pusan National University
-<br /><sup>&#8224;</sup> Corresponding author: `srjeonn@pusan.ac.kr`
+**Authors:** Bongguk Son, Sangryul Jeon
 
-AdaCFG is a plug-and-play framework that improves both the controllability and stability of text-driven diffusion editing without fine-tuning. It combines (1) an **adaptive guidance scheduler** that dynamically modulates the classifier-free guidance scale over timesteps based on the input image and prompt, and (2) a **prompt ensemble mechanism** that generates and ranks multiple semantically aligned prompt variants. The method is demonstrated on two editing backbones — **Plug-and-Play (PnP)** diffusion and **InstructPix2Pix (IP2P)** — and evaluated on **NuScenes**, **AFHQ**, and **CelebA-HQ**.
 
 ---
 
