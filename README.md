@@ -1,6 +1,16 @@
-# Adaptive Classifier-free Guidance for Robust Image-to-Image Translation
+# Adaptive Classifier-Free Guidance for Robust Image-to-Image Translation
 
-Official implementation of **AdaCFG**, an adaptive classifier-free guidance framework designed for robust image-to-image translation. AdaCFG predicts per-sample guidance scales and velocities, enabling stable edits across diverse target domains. The method is implemented on top of two editing backbones: **Plug-and-Play (PnP)** diffusion and **InstructPix2Pix (IP2P)**.
+[![Paper](https://img.shields.io/badge/IEEE-Access-00629B)](https://ieeexplore.ieee.org/document/11359251)
+[![DOI](https://img.shields.io/badge/DOI-10.1109%2FACCESS.2026.3655782-blue)](https://doi.org/10.1109/ACCESS.2026.3655782)
+[![Project Page](https://img.shields.io/badge/Project-Page-green)](https://zespy5.github.io/AdaCFG/)
+[![License: CC BY 4.0](https://img.shields.io/badge/License-CC%20BY%204.0-lightgrey.svg)](https://creativecommons.org/licenses/by/4.0/)
+
+Official implementation of **"Adaptive Classifier-Free Guidance for Robust Image-to-Image Translation"** (IEEE Access, Vol. 14, 2026).
+
+**Authors:** Bongguk Son, Sangryul Jeon<sup>&#8224;</sup> &nbsp;&nbsp;·&nbsp;&nbsp; School of Computer Science and Engineering, Pusan National University
+<br /><sup>&#8224;</sup> Corresponding author: `srjeonn@pusan.ac.kr`
+
+AdaCFG is a plug-and-play framework that improves both the controllability and stability of text-driven diffusion editing without fine-tuning. It combines (1) an **adaptive guidance scheduler** that dynamically modulates the classifier-free guidance scale over timesteps based on the input image and prompt, and (2) a **prompt ensemble mechanism** that generates and ranks multiple semantically aligned prompt variants. The method is demonstrated on two editing backbones — **Plug-and-Play (PnP)** diffusion and **InstructPix2Pix (IP2P)** — and evaluated on **NuScenes**, **AFHQ**, and **CelebA-HQ**.
 
 ---
 
@@ -188,3 +198,31 @@ Key fields in `configs/config.yaml` (PnP) and `configs/ip2p_config.yaml` (IP2P):
 | `loss.image_guidance`, `loss.devide_guide` | IP2P-specific guidance parameters |
 | `loss.gradient`, `loss.schedule_method` | Guidance schedule (`decrease`, `cosine`, ...) |
 | `loss.n_timestep`, `loss.latents_steps` | Diffusion steps and number of saved latent steps |
+
+---
+
+## Citation
+
+If you find this work useful, please cite:
+
+```bibtex
+@article{son2026adacfg,
+  author  = {Son, Bongguk and Jeon, Sangryul},
+  journal = {IEEE Access},
+  title   = {Adaptive Classifier-Free Guidance for Robust Image-to-Image Translation},
+  year    = {2026},
+  volume  = {14},
+  pages   = {23556--23576},
+  doi     = {10.1109/ACCESS.2026.3655782}
+}
+```
+
+---
+
+## Acknowledgements
+
+This research was supported by the Institute of Information & Communications Technology Planning & Evaluation (IITP) under the ITRC (Information Technology Research Center) grant (IITP-2026-RS-2023-00259967), the Artificial Intelligence Convergence Innovation Human Resources Development program (IITP-2026-RS-2023-00254177), and the Leading Generative AI Human Resources Development program (IITP-2026-RS-2024-00360227), funded by the Korean government.
+
+## License
+
+This paper is published in IEEE Access under a [Creative Commons Attribution 4.0 License](https://creativecommons.org/licenses/by/4.0/).

@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="AdaCFG: Adaptive Classifier-free Guidance for Robust Image-to-Image Translation." />
-    <meta name="keywords" content="AdaCFG, Classifier-free Guidance, Image-to-Image Translation, Diffusion, AAAI" />
-    <title>AdaCFG: Adaptive Classifier-free Guidance for Robust Image-to-Image Translation</title>
+    <meta name="description" content="AdaCFG: Adaptive Classifier-Free Guidance for Robust Image-to-Image Translation. IEEE Access 2026." />
+    <meta name="keywords" content="AdaCFG, Classifier-free Guidance, Image-to-Image Translation, Diffusion Model, Text-guided Image Editing, IEEE Access" />
+    <title>Adaptive Classifier-Free Guidance for Robust Image-to-Image Translation</title>
 
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
@@ -19,49 +19,57 @@
         <div class="hero-body">
             <div class="container is-max-desktop has-text-centered">
                 <h1 class="title is-2 publication-title">
-                    Adaptive Classifier-free Guidance for<br />
+                    Adaptive Classifier-Free Guidance for<br />
                     Robust Image-to-Image Translation
                 </h1>
 
                 <div class="is-size-5 publication-authors">
-                    <span class="author-block"><a href="#">Author 1</a><sup>1</sup>,</span>
-                    <span class="author-block"><a href="#">Author 2</a><sup>1</sup>,</span>
-                    <span class="author-block"><a href="#">Author 3</a><sup>2</sup></span>
+                    <span class="author-block">Bongguk Son<sup>1</sup>,</span>
+                    <span class="author-block">
+                        <a href="mailto:srjeonn@pusan.ac.kr">Sangryul Jeon</a><sup>1,&#8224;</sup>
+                    </span>
                 </div>
 
                 <div class="is-size-6 publication-authors">
-                    <span class="author-block"><sup>1</sup>Affiliation 1,</span>
-                    <span class="author-block"><sup>2</sup>Affiliation 2</span>
+                    <span class="author-block">
+                        <sup>1</sup>School of Computer Science and Engineering, Pusan National University
+                    </span>
+                    <br />
+                    <span class="is-size-7 has-text-grey">&#8224; Corresponding author</span>
                 </div>
 
                 <div class="is-size-5 publication-venue" style="margin-top: 0.75rem;">
-                    <strong>AAAI 2026</strong>
+                    <strong>IEEE Access, Vol. 14, 2026</strong>
                 </div>
 
                 <!-- Links -->
                 <div class="publication-links" style="margin-top: 1.5rem;">
                     <span class="link-block">
-                        <a href="#" class="external-link button is-normal is-rounded is-dark">
+                        <a href="./Adaptive_Classifier-Free_Guidance_for_Robust_Image-to-Image_Translation.pdf"
+                           class="external-link button is-normal is-rounded is-dark">
                             <span class="icon"><i class="fas fa-file-pdf"></i></span>
-                            <span>Paper</span>
+                            <span>Paper (PDF)</span>
                         </a>
                     </span>
                     <span class="link-block">
-                        <a href="#" class="external-link button is-normal is-rounded is-dark">
-                            <span class="icon"><i class="ai ai-arxiv"></i></span>
-                            <span>arXiv</span>
+                        <a href="https://ieeexplore.ieee.org/document/11359251"
+                           class="external-link button is-normal is-rounded is-dark">
+                            <span class="icon"><i class="fas fa-external-link-alt"></i></span>
+                            <span>IEEE Xplore</span>
                         </a>
                     </span>
                     <span class="link-block">
-                        <a href="https://github.com/zespy5/AdaCFG" class="external-link button is-normal is-rounded is-dark">
+                        <a href="https://doi.org/10.1109/ACCESS.2026.3655782"
+                           class="external-link button is-normal is-rounded is-dark">
+                            <span class="icon"><i class="ai ai-doi"></i></span>
+                            <span>DOI</span>
+                        </a>
+                    </span>
+                    <span class="link-block">
+                        <a href="https://github.com/zespy5/AdaCFG"
+                           class="external-link button is-normal is-rounded is-dark">
                             <span class="icon"><i class="fab fa-github"></i></span>
                             <span>Code</span>
-                        </a>
-                    </span>
-                    <span class="link-block">
-                        <a href="#" class="external-link button is-normal is-rounded is-dark">
-                            <span class="icon"><i class="fas fa-database"></i></span>
-                            <span>Data</span>
                         </a>
                     </span>
                 </div>
@@ -90,20 +98,24 @@
                     <h2 class="title is-3">Abstract</h2>
                     <div class="content has-text-justified">
                         <p>
-                            Classifier-free guidance (CFG) has become the de-facto mechanism for steering
-                            diffusion-based image-to-image translation models. However, a single fixed
-                            guidance scale is rarely optimal across different source images and target
-                            domains, leading to either under-edited or over-edited results.
+                            Text-guided image-to-image translation aims to edit a source image according to
+                            a textual prompt while preserving its structure. However, existing approaches
+                            often rely on a fixed classifier-free guidance scale and a single prompt input,
+                            leading to unstable results and a poor balance between semantic fidelity and
+                            structural preservation.
                         </p>
                         <p>
-                            We propose <strong>AdaCFG</strong>, a framework that predicts an
-                            <em>adaptive</em> classifier-free guidance scale and its velocity schedule on a
-                            per-sample basis. Our lightweight guidance predictor is trained with a combination
-                            of text-alignment, structure-preservation, and negative-prompt objectives, and it
-                            can be plugged into existing editing pipelines such as Plug-and-Play (PnP)
-                            diffusion and InstructPix2Pix (IP2P) without retraining the backbone. Experiments
-                            on the NuScenes driving dataset show that AdaCFG produces consistently more
-                            faithful and structurally coherent translations than fixed-CFG baselines.
+                            In this work, we propose a unified framework that improves both the
+                            controllability and stability of text-driven diffusion editing without requiring
+                            fine-tuning or paired training data. Our method introduces two key components:
+                            (1) an <strong>adaptive guidance scheduler</strong> that dynamically modulates
+                            the classifier-free guidance scale over timesteps based on the input image and
+                            prompt, and (2) a <strong>prompt ensemble mechanism</strong> that generates and
+                            ranks multiple semantically aligned prompt variants to mitigate prompt
+                            sensitivity. Together, these components form a plug-and-play framework that
+                            significantly improves editing consistency and visual quality. Extensive
+                            experiments on NuScenes, AFHQ, and CelebA-HQ demonstrate that our method
+                            consistently outperforms existing approaches across diverse scenarios.
                         </p>
                     </div>
                 </div>
@@ -127,17 +139,35 @@
 
                     <div class="content has-text-justified" style="margin-top: 1.5rem;">
                         <p>
-                            Given a source image and a target-domain prompt, AdaCFG encodes both with CLIP and
-                            feeds the concatenated features into a small MLP that outputs (i) an initial guidance
-                            scale <em>g<sub>init</sub></em> and (ii) a velocity term that controls how the scale
-                            evolves along the diffusion trajectory. The resulting schedule is consumed by a
-                            standard editing backbone.
+                            A fixed classifier-free guidance (CFG) scale cannot adapt to the varying
+                            difficulty of different editing tasks: it often causes either content
+                            distortion or insufficient semantic changes. AdaCFG instead predicts an
+                            <em>input-specific guidance trajectory</em> over diffusion timesteps, and robustly
+                            handles prompt phrasing via an LLM-driven prompt ensemble.
                         </p>
                         <ul>
-                            <li><strong>Adaptive Guidance Prediction.</strong> Per-sample <em>(g<sub>init</sub>, velocity)</em> replaces the fixed CFG scale.</li>
-                            <li><strong>Guidance Scheduler.</strong> Decreasing / cosine schedules produce the final per-step guidance.</li>
-                            <li><strong>Editing Backbone.</strong> Compatible with PnP and InstructPix2Pix without any backbone retraining.</li>
-                            <li><strong>Training Objective.</strong> Combines text CLIP similarity, structural DINO similarity, domain-mean alignment, and a negative-prompt term.</li>
+                            <li>
+                                <strong>Adaptive Guidance Scheduler.</strong> From the source image and prompt,
+                                we predict an initial guidance scale and a velocity term. A monotonically
+                                decreasing schedule injects strong semantic influence in early steps (shaping
+                                global content) and gradually weakens it in later steps (preserving fine
+                                structural details).
+                            </li>
+                            <li>
+                                <strong>Prompt Ensemble.</strong> We use a Large Language Model to generate
+                                semantically consistent prompt variants and aggregate their outputs, removing
+                                the need for manual prompt engineering.
+                            </li>
+                            <li>
+                                <strong>Plug-and-Play.</strong> The framework integrates into existing
+                                diffusion editing pipelines (e.g., Plug-and-Play, InstructPix2Pix) <em>without
+                                fine-tuning or paired training data</em>.
+                            </li>
+                            <li>
+                                <strong>Extensive Evaluation.</strong> Consistent gains over state-of-the-art
+                                baselines on NuScenes (driving), AFHQ (animal faces), and CelebA-HQ (human
+                                faces) across both objective metrics and a user study.
+                            </li>
                         </ul>
                     </div>
                 </div>
@@ -182,12 +212,15 @@
     <!-- BibTeX -->
     <section class="section" id="BibTeX">
         <div class="container is-max-desktop content">
-            <h2 class="title is-3">BibTeX</h2>
-            <pre><code>@inproceedings{adacfg2026,
-  title     = {Adaptive Classifier-free Guidance for Robust Image-to-Image Translation},
-  author    = {Author 1 and Author 2 and Author 3},
-  booktitle = {AAAI Conference on Artificial Intelligence},
-  year      = {2026}
+            <h2 class="title is-3">Citation</h2>
+            <pre><code>@article{son2026adacfg,
+  author  = {Son, Bongguk and Jeon, Sangryul},
+  journal = {IEEE Access},
+  title   = {Adaptive Classifier-Free Guidance for Robust Image-to-Image Translation},
+  year    = {2026},
+  volume  = {14},
+  pages   = {23556--23576},
+  doi     = {10.1109/ACCESS.2026.3655782}
 }</code></pre>
         </div>
     </section>
@@ -197,9 +230,14 @@
         <div class="container">
             <div class="content has-text-centered">
                 <p class="is-size-7">
+                    &copy; 2026 Bongguk Son, Sangryul Jeon. Published in
+                    <a href="https://ieeexplore.ieee.org/document/11359251">IEEE Access</a>
+                    under a <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a> license.
+                </p>
+                <p class="is-size-7">
                     Template adapted from the
                     <a href="https://github.com/nerfies/nerfies.github.io">Nerfies project page</a>.
-                    Source available on <a href="https://github.com/zespy5/AdaCFG">GitHub</a>.
+                    Source on <a href="https://github.com/zespy5/AdaCFG">GitHub</a>.
                 </p>
             </div>
         </div>
