@@ -146,3 +146,8 @@ figure.image img {
     height: auto;
     border-radius: 4px;
 }
+
+figure.image.fig-compact img {
+    max-width: 520px;
+    max-height: 340px;
+}
