@@ -1,0 +1,98 @@
+html, body {
+    font-family: 'Noto Sans', 'Google Sans', sans-serif;
+    background-color: #ffffff;
+    color: #1f1f1f;
+}
+
+.publication-title {
+    font-family: 'Google Sans', sans-serif;
+    font-weight: 700;
+    line-height: 1.2;
+    margin-bottom: 1.5rem !important;
+}
+
+.publication-authors {
+    margin-top: 0.5rem;
+}
+
+.publication-authors .author-block {
+    margin: 0 0.25rem;
+}
+
+.publication-authors a {
+    color: #1f6feb;
+    text-decoration: none;
+}
+
+.publication-authors a:hover {
+    text-decoration: underline;
+}
+
+.publication-venue {
+    color: #555;
+}
+
+.publication-links {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.publication-links .button {
+    font-family: 'Google Sans', sans-serif;
+}
+
+.hero {
+    padding-top: 3rem;
+    padding-bottom: 1.5rem;
+    background-color: #fafafa;
+    border-bottom: 1px solid #eee;
+}
+
+.section {
+    padding: 3rem 1.5rem;
+}
+
+.teaser-image img {
+    max-width: 90%;
+    margin: 0 auto;
+    border-radius: 6px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+}
+
+.title.is-3 {
+    font-family: 'Google Sans', sans-serif;
+    font-weight: 700;
+    margin-bottom: 1.25rem;
+}
+
+.content p {
+    font-size: 1.05rem;
+    line-height: 1.7;
+}
+
+pre {
+    background-color: #f5f5f5;
+    border-radius: 6px;
+    padding: 1rem 1.25rem;
+    overflow-x: auto;
+    font-size: 0.9rem;
+}
+
+pre code {
+    background: transparent;
+    color: #1f1f1f;
+}
+
+.footer {
+    background-color: #fafafa;
+    padding: 2rem 1rem;
+    border-top: 1px solid #eee;
+}
+
+figure.image img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 4px;
+}

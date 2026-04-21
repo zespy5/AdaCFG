@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="AdaCFG: Adaptive Classifier-free Guidance for Robust Image-to-Image Translation." />
+    <meta name="keywords" content="AdaCFG, Classifier-free Guidance, Image-to-Image Translation, Diffusion, AAAI" />
+    <title>AdaCFG: Adaptive Classifier-free Guidance for Robust Image-to-Image Translation</title>
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;700&family=Noto+Sans:wght@400;600&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="./static/css/style.css" />
+</head>
+
+<body>
+    <!-- Hero / Title -->
+    <section class="hero">
+        <div class="hero-body">
+            <div class="container is-max-desktop has-text-centered">
+                <h1 class="title is-2 publication-title">
+                    Adaptive Classifier-free Guidance for<br />
+                    Robust Image-to-Image Translation
+                </h1>
+
+                <div class="is-size-5 publication-authors">
+                    <span class="author-block"><a href="#">Author 1</a><sup>1</sup>,</span>
+                    <span class="author-block"><a href="#">Author 2</a><sup>1</sup>,</span>
+                    <span class="author-block"><a href="#">Author 3</a><sup>2</sup></span>
+                </div>
+
+                <div class="is-size-6 publication-authors">
+                    <span class="author-block"><sup>1</sup>Affiliation 1,</span>
+                    <span class="author-block"><sup>2</sup>Affiliation 2</span>
+                </div>
+
+                <div class="is-size-5 publication-venue" style="margin-top: 0.75rem;">
+                    <strong>AAAI 2026</strong>
+                </div>
+
+                <!-- Links -->
+                <div class="publication-links" style="margin-top: 1.5rem;">
+                    <span class="link-block">
+                        <a href="#" class="external-link button is-normal is-rounded is-dark">
+                            <span class="icon"><i class="fas fa-file-pdf"></i></span>
+                            <span>Paper</span>
+                        </a>
+                    </span>
+                    <span class="link-block">
+                        <a href="#" class="external-link button is-normal is-rounded is-dark">
+                            <span class="icon"><i class="ai ai-arxiv"></i></span>
+                            <span>arXiv</span>
+                        </a>
+                    </span>
+                    <span class="link-block">
+                        <a href="https://github.com/zespy5/AdaCFG" class="external-link button is-normal is-rounded is-dark">
+                            <span class="icon"><i class="fab fa-github"></i></span>
+                            <span>Code</span>
+                        </a>
+                    </span>
+                    <span class="link-block">
+                        <a href="#" class="external-link button is-normal is-rounded is-dark">
+                            <span class="icon"><i class="fas fa-database"></i></span>
+                            <span>Data</span>
+                        </a>
+                    </span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Teaser -->
+    <section class="section">
+        <div class="container is-max-desktop has-text-centered">
+            <figure class="image teaser-image">
+                <img src="./static/images/teaser.png" alt="Teaser" onerror="this.style.display='none'" />
+            </figure>
+            <p class="has-text-grey is-size-7" style="margin-top: 0.5rem;">
+                <em>Figure 1. AdaCFG adaptively predicts per-sample guidance scales and velocities,
+                    producing robust edits across diverse target domains.</em>
+            </p>
+        </div>
+    </section>
+
+    <!-- Abstract -->
+    <section class="section">
+        <div class="container is-max-desktop">
+            <div class="columns is-centered has-text-centered">
+                <div class="column is-four-fifths">
+                    <h2 class="title is-3">Abstract</h2>
+                    <div class="content has-text-justified">
+                        <p>
+                            Classifier-free guidance (CFG) has become the de-facto mechanism for steering
+                            diffusion-based image-to-image translation models. However, a single fixed
+                            guidance scale is rarely optimal across different source images and target
+                            domains, leading to either under-edited or over-edited results.
+                        </p>
+                        <p>
+                            We propose <strong>AdaCFG</strong>, a framework that predicts an
+                            <em>adaptive</em> classifier-free guidance scale and its velocity schedule on a
+                            per-sample basis. Our lightweight guidance predictor is trained with a combination
+                            of text-alignment, structure-preservation, and negative-prompt objectives, and it
+                            can be plugged into existing editing pipelines such as Plug-and-Play (PnP)
+                            diffusion and InstructPix2Pix (IP2P) without retraining the backbone. Experiments
+                            on the NuScenes driving dataset show that AdaCFG produces consistently more
+                            faithful and structurally coherent translations than fixed-CFG baselines.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Method -->
+    <section class="section">
+        <div class="container is-max-desktop">
+            <div class="columns is-centered">
+                <div class="column is-full-width">
+                    <h2 class="title is-3 has-text-centered">Method</h2>
+
+                    <figure class="image" style="margin: 1.5rem 0;">
+                        <img src="./static/images/pipeline.png" alt="Pipeline" onerror="this.style.display='none'" />
+                    </figure>
+                    <p class="has-text-centered has-text-grey is-size-7">
+                        <em>Figure 2. Overview of the AdaCFG pipeline.</em>
+                    </p>
+
+                    <div class="content has-text-justified" style="margin-top: 1.5rem;">
+                        <p>
+                            Given a source image and a target-domain prompt, AdaCFG encodes both with CLIP and
+                            feeds the concatenated features into a small MLP that outputs (i) an initial guidance
+                            scale <em>g<sub>init</sub></em> and (ii) a velocity term that controls how the scale
+                            evolves along the diffusion trajectory. The resulting schedule is consumed by a
+                            standard editing backbone.
+                        </p>
+                        <ul>
+                            <li><strong>Adaptive Guidance Prediction.</strong> Per-sample <em>(g<sub>init</sub>, velocity)</em> replaces the fixed CFG scale.</li>
+                            <li><strong>Guidance Scheduler.</strong> Decreasing / cosine schedules produce the final per-step guidance.</li>
+                            <li><strong>Editing Backbone.</strong> Compatible with PnP and InstructPix2Pix without any backbone retraining.</li>
+                            <li><strong>Training Objective.</strong> Combines text CLIP similarity, structural DINO similarity, domain-mean alignment, and a negative-prompt term.</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Results -->
+    <section class="section">
+        <div class="container is-max-desktop">
+            <h2 class="title is-3 has-text-centered">Qualitative Results</h2>
+
+            <div class="columns is-multiline" style="margin-top: 1.5rem;">
+                <div class="column is-half">
+                    <figure class="image">
+                        <img src="./static/images/result_1.png" alt="Result 1" onerror="this.style.display='none'" />
+                    </figure>
+                    <p class="has-text-centered is-size-6">Source → "A photo of a street at night."</p>
+                </div>
+                <div class="column is-half">
+                    <figure class="image">
+                        <img src="./static/images/result_2.png" alt="Result 2" onerror="this.style.display='none'" />
+                    </figure>
+                    <p class="has-text-centered is-size-6">Source → "A photo of a street in snow."</p>
+                </div>
+                <div class="column is-half">
+                    <figure class="image">
+                        <img src="./static/images/result_3.png" alt="Result 3" onerror="this.style.display='none'" />
+                    </figure>
+                    <p class="has-text-centered is-size-6">Source → "A photo of a street in rain."</p>
+                </div>
+                <div class="column is-half">
+                    <figure class="image">
+                        <img src="./static/images/result_4.png" alt="Result 4" onerror="this.style.display='none'" />
+                    </figure>
+                    <p class="has-text-centered is-size-6">Source → "A photo of a street in fog."</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- BibTeX -->
+    <section class="section" id="BibTeX">
+        <div class="container is-max-desktop content">
+            <h2 class="title is-3">BibTeX</h2>
+            <pre><code>@inproceedings{adacfg2026,
+  title     = {Adaptive Classifier-free Guidance for Robust Image-to-Image Translation},
+  author    = {Author 1 and Author 2 and Author 3},
+  booktitle = {AAAI Conference on Artificial Intelligence},
+  year      = {2026}
+}</code></pre>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <div class="content has-text-centered">
+                <p class="is-size-7">
+                    Template adapted from the
+                    <a href="https://github.com/nerfies/nerfies.github.io">Nerfies project page</a>.
+                    Source available on <a href="https://github.com/zespy5/AdaCFG">GitHub</a>.
+                </p>
+            </div>
+        </div>
+    </footer>
+</body>
+</html>
