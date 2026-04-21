@@ -81,10 +81,11 @@
     <section class="section">
         <div class="container is-max-desktop has-text-centered">
             <figure class="image teaser-image">
-                <img src="./static/images/teaser.png" alt="Teaser" onerror="this.style.display='none'" />
+                <img src="./figure/figure1-headimage.png" alt="Teaser" />
             </figure>
-            <p class="has-text-grey is-size-7" style="margin-top: 0.5rem;">
-                <em>Figure 1. AdaCFG adaptively predicts per-sample guidance scales and velocities,
+            <p class="has-text-grey is-size-7" style="margin-top: 0.75rem;">
+                <em>Figure 1. A fixed classifier-free guidance scale fails to balance semantic fidelity
+                    and structural preservation. AdaCFG adapts the guidance trajectory to each input,
                     producing robust edits across diverse target domains.</em>
             </p>
         </div>
@@ -130,21 +131,26 @@
                 <div class="column is-full-width">
                     <h2 class="title is-3 has-text-centered">Method</h2>
 
-                    <figure class="image" style="margin: 1.5rem 0;">
-                        <img src="./static/images/pipeline.png" alt="Pipeline" onerror="this.style.display='none'" />
-                    </figure>
-                    <p class="has-text-centered has-text-grey is-size-7">
-                        <em>Figure 2. Overview of the AdaCFG pipeline.</em>
-                    </p>
-
-                    <div class="content has-text-justified" style="margin-top: 1.5rem;">
+                    <div class="content has-text-justified">
                         <p>
                             A fixed classifier-free guidance (CFG) scale cannot adapt to the varying
                             difficulty of different editing tasks: it often causes either content
                             distortion or insufficient semantic changes. AdaCFG instead predicts an
-                            <em>input-specific guidance trajectory</em> over diffusion timesteps, and robustly
-                            handles prompt phrasing via an LLM-driven prompt ensemble.
+                            <em>input-specific guidance trajectory</em> over diffusion timesteps, and
+                            robustly handles prompt phrasing via an LLM-driven prompt ensemble.
                         </p>
+                    </div>
+
+                    <figure class="image" style="margin: 1.5rem 0;">
+                        <img src="./figure/Figure3-overallpipeline.png" alt="Overall pipeline" />
+                    </figure>
+                    <p class="has-text-centered has-text-grey is-size-7">
+                        <em>Figure 2. Overall pipeline of AdaCFG. The adaptive guidance scheduler predicts an
+                            input-specific guidance trajectory and combines it with a prompt ensemble to
+                            steer a pre-trained diffusion editor.</em>
+                    </p>
+
+                    <div class="content has-text-justified" style="margin-top: 1.5rem;">
                         <ul>
                             <li>
                                 <strong>Adaptive Guidance Scheduler.</strong> From the source image and prompt,
@@ -170,42 +176,58 @@
                             </li>
                         </ul>
                     </div>
+
+                    <figure class="image" style="margin: 2rem 0 0.75rem;">
+                        <img src="./figure/Figure4-prompt_ensemble_sample.png" alt="Prompt ensemble" />
+                    </figure>
+                    <p class="has-text-centered has-text-grey is-size-7">
+                        <em>Figure 3. Prompt ensemble. The LLM expands a single target prompt into multiple
+                            semantically consistent variants; outputs are aggregated to mitigate prompt
+                            sensitivity.</em>
+                    </p>
                 </div>
             </div>
         </div>
     </section>
 
-    <!-- Results -->
+    <!-- Qualitative Results -->
     <section class="section">
         <div class="container is-max-desktop">
             <h2 class="title is-3 has-text-centered">Qualitative Results</h2>
 
-            <div class="columns is-multiline" style="margin-top: 1.5rem;">
-                <div class="column is-half">
-                    <figure class="image">
-                        <img src="./static/images/result_1.png" alt="Result 1" onerror="this.style.display='none'" />
-                    </figure>
-                    <p class="has-text-centered is-size-6">Source → "A photo of a street at night."</p>
-                </div>
-                <div class="column is-half">
-                    <figure class="image">
-                        <img src="./static/images/result_2.png" alt="Result 2" onerror="this.style.display='none'" />
-                    </figure>
-                    <p class="has-text-centered is-size-6">Source → "A photo of a street in snow."</p>
-                </div>
-                <div class="column is-half">
-                    <figure class="image">
-                        <img src="./static/images/result_3.png" alt="Result 3" onerror="this.style.display='none'" />
-                    </figure>
-                    <p class="has-text-centered is-size-6">Source → "A photo of a street in rain."</p>
-                </div>
-                <div class="column is-half">
-                    <figure class="image">
-                        <img src="./static/images/result_4.png" alt="Result 4" onerror="this.style.display='none'" />
-                    </figure>
-                    <p class="has-text-centered is-size-6">Source → "A photo of a street in fog."</p>
-                </div>
-            </div>
+            <!-- NuScenes -->
+            <h3 class="title is-5" style="margin-top: 1.5rem;">Driving Scenes (NuScenes)</h3>
+            <figure class="image" style="margin: 0.5rem 0;">
+                <img src="./figure/figure5-baseline_compare_nuscenes.png" alt="NuScenes qualitative comparison" />
+            </figure>
+            <p class="has-text-centered has-text-grey is-size-7">
+                <em>Figure 4. Qualitative comparison on NuScenes. AdaCFG produces more faithful edits
+                    while better preserving scene structure than fixed-CFG baselines.</em>
+            </p>
+
+            <!-- Face -->
+            <h3 class="title is-5" style="margin-top: 2.5rem;">Face Domains (AFHQ &amp; CelebA-HQ)</h3>
+            <figure class="image" style="margin: 0.5rem 0;">
+                <img src="./figure/figure6-baseline_face.png" alt="Face qualitative comparison" />
+            </figure>
+            <p class="has-text-centered has-text-grey is-size-7">
+                <em>Figure 5. Qualitative comparison on AFHQ and CelebA-HQ. Our method generalizes
+                    beyond driving scenes and remains effective on animal and human faces.</em>
+            </p>
+        </div>
+    </section>
+
+    <!-- Quantitative -->
+    <section class="section">
+        <div class="container is-max-desktop">
+            <h2 class="title is-3 has-text-centered">Quantitative Results</h2>
+            <figure class="image" style="margin: 1rem 0;">
+                <img src="./figure/figure8-baseline_plot.png" alt="Quantitative comparison" />
+            </figure>
+            <p class="has-text-centered has-text-grey is-size-7">
+                <em>Figure 6. Structure-semantic trade-off curves. AdaCFG consistently dominates fixed-CFG
+                    baselines across the operating range.</em>
+            </p>
         </div>
     </section>
 
