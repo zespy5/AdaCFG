@@ -55,7 +55,10 @@ html, body {
 }
 
 .teaser-image img {
-    max-width: 90%;
+    max-width: 100%;
+    max-height: 420px;
+    width: auto;
+    height: auto;
     margin: 0 auto;
     border-radius: 6px;
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
@@ -91,8 +94,15 @@ pre code {
     border-top: 1px solid #eee;
 }
 
+figure.image {
+    text-align: center;
+}
+
 figure.image img {
+    display: inline-block;
     max-width: 100%;
+    max-height: 600px;
+    width: auto;
     height: auto;
     border-radius: 4px;
 }
