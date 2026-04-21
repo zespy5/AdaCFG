@@ -94,6 +94,46 @@ pre code {
     border-top: 1px solid #eee;
 }
 
+.result-table {
+    font-size: 0.9rem;
+}
+
+.result-table thead th {
+    background-color: #f5f5f5;
+    border-bottom: 2px solid #ccc !important;
+    white-space: nowrap;
+}
+
+.result-table tbody td,
+.result-table tbody th {
+    text-align: center;
+    vertical-align: middle;
+}
+
+.result-table tbody td:first-child,
+.result-table tbody th:first-child {
+    text-align: left;
+    white-space: nowrap;
+}
+
+.result-table tr.row-baseline td {
+    border-top: 1.5px solid #999;
+}
+
+.result-table tr.row-ours {
+    background-color: #fff5f5;
+}
+
+.result-table tr.row-ours td {
+    color: #c0392b;
+}
+
+.result-table tr.row-gain td {
+    color: #6b6b6b;
+    font-size: 0.8rem;
+    border-bottom: 1px solid #ddd;
+}
+
 figure.image {
     text-align: center;
 }

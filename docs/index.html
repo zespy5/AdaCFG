@@ -221,12 +221,136 @@
     <section class="section">
         <div class="container is-max-desktop">
             <h2 class="title is-3 has-text-centered">Quantitative Results</h2>
-            <figure class="image" style="margin: 1rem 0;">
-                <img src="./figure/figure8-baseline_plot.png" alt="Quantitative comparison" />
+
+            <p class="has-text-centered has-text-grey is-size-7" style="margin: 0.75rem 0 1rem;">
+                <em>Table 1. Quantitative comparisons on NuScenes, AFHQ, and CelebA-HQ. We report
+                    CLIP&uparrow; and DINO&uparrow; to assess semantic alignment and structural preservation,
+                    and Align&uparrow;&dagger; &mdash; a unified GPT-4o based metric following HQ-Edit &mdash;
+                    for overall edit quality.</em>
+            </p>
+
+            <div class="table-container">
+                <table class="table is-hoverable is-fullwidth is-narrow result-table">
+                    <thead>
+                        <tr>
+                            <th rowspan="2" class="has-text-left">Method</th>
+                            <th colspan="3" class="has-text-centered">NuScenes</th>
+                            <th colspan="3" class="has-text-centered">AFHQ</th>
+                            <th colspan="3" class="has-text-centered">CelebA-HQ</th>
+                        </tr>
+                        <tr>
+                            <th class="has-text-centered">CLIP&uarr;</th>
+                            <th class="has-text-centered">DINO&uarr;</th>
+                            <th class="has-text-centered">Align&uarr;&dagger;</th>
+                            <th class="has-text-centered">CLIP&uarr;</th>
+                            <th class="has-text-centered">DINO&uarr;</th>
+                            <th class="has-text-centered">Align&uarr;&dagger;</th>
+                            <th class="has-text-centered">CLIP&uarr;</th>
+                            <th class="has-text-centered">DINO&uarr;</th>
+                            <th class="has-text-centered">Align&uarr;&dagger;</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>S-CFG [38]</td>
+                            <td>18.4</td><td>33.1</td><td>14.4</td>
+                            <td>20.7</td><td>51.7</td><td>32.4</td>
+                            <td>19.2</td><td>61.8</td><td>19.4</td>
+                        </tr>
+                        <tr>
+                            <td>CFG++ [37]</td>
+                            <td>15.2</td><td>18.6</td><td>19.8</td>
+                            <td>21.2</td><td>18.6</td><td>50.8</td>
+                            <td>19.0</td><td>39.1</td><td>35.7</td>
+                        </tr>
+                        <tr>
+                            <td>SDEdit [9]</td>
+                            <td>21.6</td><td>46.3</td><td>38.5</td>
+                            <td>20.7</td><td>71.5</td><td>63.7</td>
+                            <td>18.7</td><td>78.0</td><td>70.6</td>
+                        </tr>
+                        <tr>
+                            <td>CycleDiff [16]</td>
+                            <td>22.4</td><td>55.5</td><td>69.3</td>
+                            <td>23.9</td><td>44.8</td><td>85.7</td>
+                            <td>23.9</td><td>59.0</td><td>80.2</td>
+                        </tr>
+                        <tr>
+                            <td>HQ-Edit [24]</td>
+                            <td>21.9</td><td>53.9</td><td>57.8</td>
+                            <td>22.6</td><td>57.8</td><td>65.8</td>
+                            <td>20.2</td><td>60.1</td><td>67.8</td>
+                        </tr>
+                        <tr>
+                            <td>P2P+NTI [8,&nbsp;18]</td>
+                            <td>23.2</td><td>72.0</td><td>40.4</td>
+                            <td>25.5</td><td>19.9</td><td>75.5</td>
+                            <td>24.5</td><td>32.0</td><td>53.4</td>
+                        </tr>
+                        <tr>
+                            <td>IP-Adapter [17]</td>
+                            <td>20.4</td><td>31.9</td><td>44.5</td>
+                            <td>22.9</td><td>34.5</td><td>61.3</td>
+                            <td>21.2</td><td>38.7</td><td>72.3</td>
+                        </tr>
+                        <tr>
+                            <td>P2P-zero [15]</td>
+                            <td>20.3</td><td>57.1</td><td>54.2</td>
+                            <td>19.0</td><td>76.4</td><td>43.6</td>
+                            <td>18.5</td><td>72.1</td><td>51.5</td>
+                        </tr>
+                        <tr class="row-baseline">
+                            <td>I-P2P [11]</td>
+                            <td>19.9</td><td>79.3</td><td>76.1</td>
+                            <td>24.3</td><td>65.8</td><td>72.2</td>
+                            <td>21.5</td><td>88.8</td><td>76.7</td>
+                        </tr>
+                        <tr class="row-ours">
+                            <td><strong>+ AdaCFG</strong></td>
+                            <td><strong>22.1</strong></td><td>78.2</td><td><strong>86.2</strong></td>
+                            <td><strong>26.5</strong></td><td>45.8</td><td><strong>83.6</strong></td>
+                            <td><strong>23.4</strong></td><td>86.7</td><td><strong>84.7</strong></td>
+                        </tr>
+                        <tr class="row-gain">
+                            <td><em>gain</em></td>
+                            <td>+2.2</td><td>&minus;1.1</td><td>+10.1</td>
+                            <td>+2.2</td><td>&minus;20.0</td><td>+11.4</td>
+                            <td>+1.9</td><td>&minus;2.1</td><td>+8.0</td>
+                        </tr>
+                        <tr class="row-baseline">
+                            <td>PnP [7]</td>
+                            <td>25.0</td><td>51.0</td><td>85.5</td>
+                            <td>24.5</td><td>63.8</td><td>79.3</td>
+                            <td>23.8</td><td>71.9</td><td>85.8</td>
+                        </tr>
+                        <tr class="row-ours">
+                            <td><strong>+ AdaCFG</strong></td>
+                            <td>24.8</td><td><strong>59.5</strong></td><td><strong>92.4</strong></td>
+                            <td><strong>26.4</strong></td><td>53.2</td><td><strong>90.7</strong></td>
+                            <td><strong>24.8</strong></td><td><strong>74.2</strong></td><td><strong>87.9</strong></td>
+                        </tr>
+                        <tr class="row-gain">
+                            <td><em>gain</em></td>
+                            <td>&minus;0.2</td><td>+8.5</td><td>+6.9</td>
+                            <td>+1.9</td><td>&minus;10.6</td><td>+11.4</td>
+                            <td>+1.0</td><td>+2.3</td><td>+2.1</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <p class="has-text-grey is-size-7" style="margin-top: 0.25rem;">
+                &dagger; Align is a holistic edit-quality score computed with GPT-4o, based on the source
+                image, target prompt, and edited output (following the HQ-Edit protocol).
+            </p>
+
+            <figure class="image" style="margin-top: 2.5rem;">
+                <img src="./figure/figure8-baseline_plot.png" alt="Trade-off analysis plot" />
             </figure>
             <p class="has-text-centered has-text-grey is-size-7">
-                <em>Figure 6. Structure-semantic trade-off curves. AdaCFG consistently dominates fixed-CFG
-                    baselines across the operating range.</em>
+                <em>Figure 6. Trade-off analysis on balancing semantic alignment (CLIP&uarr;) and
+                    structural preservation (DINO&uarr;). AdaCFG-augmented variants (red stars)
+                    consistently occupy the top-right region, indicating superior balance.</em>
             </p>
         </div>
     </section>
